@@ -1,0 +1,6 @@
+{
+  "name": "Task Mini",
+  "description": "Control Your Time. Grow Your Skills. Build Your Future.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

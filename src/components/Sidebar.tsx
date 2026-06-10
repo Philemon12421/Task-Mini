@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { 
   Home, CheckSquare, Calendar, Target, Award, PlayCircle, Users, Lightbulb, 
-  Video, BarChart3, Flame, Settings, Star
+  Video, BarChart3, Flame, Settings, Star, Share2
 } from "lucide-react";
 
 interface SidebarProps {
@@ -29,6 +29,7 @@ export default function Sidebar({
     { id: "team", label: "Team Collaboration", icon: Users },
     { id: "ideas", label: "Idea Vault", icon: Lightbulb },
     { id: "content", label: "Content Creator Hub", icon: Video },
+    { id: "schedule", label: "Social Scheduler", icon: Share2 },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "motivation", label: "Motivation Center", icon: Flame },
   ];
@@ -75,11 +76,11 @@ export default function Sidebar({
       <div id="sidebar-profile-card" className="mx-4 my-2 p-4 rounded-2xl bg-slate-50/50 border border-slate-100">
         <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono mb-1.5 font-bold">
           <span className="uppercase tracking-wide">Level {userLevel.level} XP</span>
-          <span className="text-[#FF7A00]">{userXP} / {userLevel.level * 1000}</span>
+          <span className="text-[#FF7A00]">{userXP} / {userLevel.level === 0 ? 500 : userLevel.level * 1000}</span>
         </div>
         <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
           <div 
-            style={{ width: `${Math.min(100, (userXP / (userLevel.level * 1000)) * 100)}%` }}
+            style={{ width: `${Math.min(100, (userXP / (userLevel.level === 0 ? 500 : userLevel.level * 1000)) * 100)}%` }}
             className="bg-[#FF7A00] h-full rounded-full transition-all duration-500"
           />
         </div>
@@ -97,8 +98,8 @@ export default function Sidebar({
               <div className="text-[9px] text-slate-400 font-mono truncate">CEO | Drenchack Tech</div>
             </div>
           </div>
-          <div className="flex items-center gap-0.5 bg-orange-50 text-orange-600 px-1.5 py-1 rounded-lg text-[10px] font-bold shrink-0">
-            <span>🔥</span>
+          <div className="flex items-center gap-0.5 bg-orange-50 text-[#FF7A00] px-1.5 py-1 rounded-lg text-[10px] font-bold shrink-0">
+            <Flame className="w-3.5 h-3.5 text-[#FF7A00] fill-orange-100" />
             <span>{streakDays}d</span>
           </div>
         </div>

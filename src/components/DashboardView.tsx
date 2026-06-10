@@ -1,13 +1,14 @@
 import { motion } from "motion/react";
-import { Task, Goal, Skill, MotivationState } from "../types";
+import { Task, Goal, Skill, MotivationState, Category } from "../types";
 import { 
   CheckCircle2, Circle, Clock, Flame, BookOpen, ChevronRight, 
-  Lightbulb, ShieldCheck, Video, RefreshCw, Zap
+  Lightbulb, ShieldCheck, Video, RefreshCw, Zap, Plus, Sparkles, X, AlertCircle
 } from "lucide-react";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
 
 interface DashboardViewProps {
   tasks: Task[];
+  addTask: (newTaskData: Omit<Task, "id" | "xpReward" | "tags"> & { xpReward: number; tags?: string[] }) => void;
   goals: Goal[];
   skills: Skill[];
   motivation: MotivationState;
@@ -18,10 +19,12 @@ interface DashboardViewProps {
   onRefreshMotivation: () => void;
   isLoadingMotivation: boolean;
   onNavigate: (tab: string) => void;
+  isDeepFocus?: boolean;
 }
 
 export default function DashboardView({
   tasks,
+  addTask,
   goals,
   skills,
   motivation,
@@ -31,11 +34,18 @@ export default function DashboardView({
   addQuickIdea,
   onRefreshMotivation,
   isLoadingMotivation,
-  onNavigate
+  onNavigate,
+  isDeepFocus = false
 }: DashboardViewProps) {
   // Quick Idea state
   const [quickIdeaTitle, setQuickIdeaTitle] = useState("");
   const [successMsg, setSuccessMsg] = useState(false);
+
+  // FAB NLP task creation states
+  const [fabOpen, setFabOpen] = useState(false);
+  const [nlpInput, setNlpInput] = useState("");
+  const [nlpSuccess, setNlpSuccess] = useState(false);
+  const fabInputRef = useRef<HTMLInputElement>(null);
 
   const handleQuickIdeaSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -47,28 +57,143 @@ export default function DashboardView({
   };
 
   // Process numbers
-  const todayTasks = tasks.filter(t => t.deadline === "2026-06-11" || t.id === "task-1" || t.id === "task-2");
+  const todayTasks = tasks.filter(t => t.deadline === "2026-06-11" || t.id === "task-1" || t.id === "task-2" || t.tags?.includes("NLP"));
   const completedTodayCount = todayTasks.filter(t => t.status === "Completed").length;
   const totalTodayCount = todayTasks.length;
 
-  const numCompletedTotal = tasks.filter(t => t.status === "Completed").length;
+  // Real-time NLP parsing engine for FAB
+  const parseNLPTask = (input: string) => {
+    const norm = input.toLowerCase();
+
+    // 1. Priority Matcher
+    let priority: "High" | "Medium" | "Low" = "Medium";
+    if (/\b(high|urgent|important|critical)\b/.test(norm)) {
+      priority = "High";
+    } else if (/\b(low|easy|minor)\b/.test(norm)) {
+      priority = "Low";
+    } else if (/\b(medium|normal|moderate)\b/.test(norm)) {
+      priority = "Medium";
+    }
+
+    // 2. Class Matcher
+    let category: Category = "Personal";
+    if (/\b(code|react|web|app|development|typescript|vite|frontend|backend|program|js|coding)\b/.test(norm)) {
+      category = "Software Engineering";
+    } else if (/\b(cyber|security|hack|ad|pentest|lab|exploit|vulnerability|audit|firewall)\b/.test(norm)) {
+      category = "Cybersecurity";
+    } else if (/\b(video|edit|youtube|shorts|tiktok|reels|render|content|script|audio)\b/.test(norm)) {
+      category = "Content Creation";
+    } else if (/\b(business|agency|client|contract|deal|startup|sales|revenue|invoice)\b/.test(norm)) {
+      category = "Business";
+    }
+
+    // 3. Simple Offset Matcher
+    let offsetDays = 1; // standardTomorrow
+    if (/\btoday\b/.test(norm)) {
+      offsetDays = 0;
+    } else if (/\btomorrow\b/.test(norm)) {
+      offsetDays = 1;
+    } else if (/\bin (\d+) days?\b/.test(norm)) {
+      const match = norm.match(/\bin (\d+) days?\b/);
+      if (match) offsetDays = parseInt(match[1]);
+    } else {
+      const daysOfWeek = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+      for (let i = 0; i < daysOfWeek.length; i++) {
+        if (new RegExp(`\\b${daysOfWeek[i]}\\b`).test(norm)) {
+          const todayIndex = 3; // Wednesday June 10, 2026
+          const targetDayIndex = i;
+          if (targetDayIndex > todayIndex) {
+            offsetDays = targetDayIndex - todayIndex;
+          } else {
+            offsetDays = 7 - todayIndex + targetDayIndex;
+          }
+          break;
+        }
+      }
+    }
+
+    const refDate = new Date("2026-06-10");
+    refDate.setDate(refDate.getDate() + offsetDays);
+    const yyyy = refDate.getFullYear();
+    const mm = String(refDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(refDate.getDate()).padStart(2, '0');
+    const deadline = `${yyyy}-${mm}-${dd}`;
+
+    // 4. Clean Title Stripper
+    let title = input;
+    const regexes = [
+      /\b(today|tonight|tomorrow|next week)\b/gi,
+      /\bin \d+ days?\b/gi,
+      /\b(high|urgent|important|critical|medium|normal|moderate|low|easy|minor)\b/gi,
+      /\b(priority|for today|for tomorrow|due today|due tomorrow|by today|by tomorrow)\b/gi,
+      /\b(on monday|on tuesday|on wednesday|on thursday|on friday|on saturday|on sunday|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi
+    ];
+    regexes.forEach((r) => { title = title.replace(r, ""); });
+    title = title.replace(/\s+/g, " ").trim();
+    title = title.replace(/\s(for|on|at|by|with|due)$/i, "").trim();
+    title = title.replace(/^[,\s\-\:]+/, "").replace(/[,\s\-\:]+$/, "").trim();
+
+    if (!title) title = input.trim() || "Drafted Task";
+
+    return { title, priority, category, deadline };
+  };
+
+  const parsedTask = parseNLPTask(nlpInput);
+
+  const handleCreateNLPTask = (e: FormEvent) => {
+    e.preventDefault();
+    if (!nlpInput.trim()) return;
+
+    const parsed = parseNLPTask(nlpInput);
+    const xp = parsed.priority === "High" ? 120 : parsed.priority === "Medium" ? 70 : 40;
+
+    addTask({
+      title: parsed.title,
+      priority: parsed.priority,
+      category: parsed.category,
+      deadline: parsed.deadline,
+      status: "Todo",
+      tags: ["NLP", "Instant"],
+      xpReward: xp,
+      notes: `Captured instantly via NLP FAB parsing query: "${nlpInput}"`
+    });
+
+    setNlpInput("");
+    setNlpSuccess(true);
+    setTimeout(() => {
+      setNlpSuccess(false);
+      setFabOpen(false);
+    }, 1200);
+  };
+
+  useEffect(() => {
+    if (fabOpen) {
+      setTimeout(() => fabInputRef.current?.focus(), 150);
+    }
+  }, [fabOpen]);
 
   return (
-    <div id="dashboard-viewport" className="space-y-8 max-w-6xl mx-auto">
+    <div id="dashboard-viewport" className="space-y-8 max-w-6xl mx-auto relative pb-16">
+      
       {/* Header section with Greeting and quick micro stats */}
-      <div id="dashboard-greeting-hero" className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div 
+        id="dashboard-greeting-hero" 
+        className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-all duration-700 ${
+          isDeepFocus ? "opacity-25" : "opacity-100"
+        }`}
+      >
         <div>
-          <h1 className="text-3xl font-sans font-bold text-slate-900 tracking-tight">
-            Good Morning Philemon 👋
+          <h1 className="text-3xl font-sans font-bold text-slate-900 tracking-tight dark:text-white">
+            Good Morning Philemon<span className="text-[#FF7A00]">.</span>
           </h1>
           <p className="text-slate-400 font-medium mt-1">
-            Your daily operating system is ready to grow your future.
+            Build your future. Your linear workspace starts with empty discipline.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button 
             onClick={() => onNavigate("planner")}
-            className="flex items-center gap-2 bg-white px-5 py-2.5 border border-slate-100 rounded-2xl text-xs font-bold uppercase tracking-wider text-slate-700 shadow-sm hover:bg-[#F8F9FB] active:scale-95 transition-all cursor-pointer"
+            className="flex items-center gap-2 bg-white px-5 py-2.5 border border-slate-100 dark:bg-slate-900 dark:border-slate-800 rounded-2xl text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:bg-[#F8F9FB] active:scale-95 transition-all cursor-pointer"
           >
             <Clock className="w-4 h-4 text-[#FF7A00]" />
             <span>Open Timer</span>
@@ -77,50 +202,57 @@ export default function DashboardView({
       </div>
 
       {/* Grid: High Stakes Stats Cards */}
-      <div id="dashboard-bento-metrics" className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+      <div 
+        id="dashboard-bento-metrics" 
+        className={`grid grid-cols-2 lg:grid-cols-4 gap-6 transition-all duration-1000 ${
+          isDeepFocus 
+            ? "opacity-15 pointer-events-none select-none filter saturate-50 blur-[0.2px] hover:opacity-100 hover:pointer-events-auto hover:blur-none hover:saturate-100" 
+            : "opacity-100"
+        }`}
+      >
         {/* Metric 1: Streak */}
-        <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group">
-          <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center text-[#FF7A00] shrink-0 font-bold">
-            🔥
+        <div className="bg-white/95 dark:bg-slate-900/90 p-7 rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
+          <div className="w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-[#FF7A00] shrink-0 font-bold">
+            <Flame className="w-5 h-5 text-[#FF7A00] fill-orange-100" />
           </div>
           <div>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Streak</p>
-            <h3 className="text-xl font-bold font-sans text-slate-800 mt-0.5">{streakDays} Days</h3>
+            <h3 className="text-xl font-bold font-sans text-slate-800 dark:text-slate-100 mt-0.5">{streakDays} Days</h3>
           </div>
         </div>
 
         {/* Metric 2: Time Used Today */}
-        <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group">
-          <div className="w-11 h-11 rounded-xl bg-slate-50 flex items-center justify-center text-slate-700 shrink-0">
+        <div className="bg-white/95 dark:bg-slate-900/90 p-7 rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
+          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-700 shrink-0">
             <Clock className="w-5 h-5 text-[#FF7A00]" />
           </div>
           <div>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Focus Time</p>
-            <h3 className="text-xl font-bold font-sans text-slate-800 mt-0.5">{timeSpentToday.toFixed(1)} hrs</h3>
+            <h3 className="text-xl font-bold font-sans text-slate-800 dark:text-slate-100 mt-0.5">{timeSpentToday.toFixed(1)} hrs</h3>
           </div>
         </div>
 
         {/* Metric 3: Task Progress */}
-        <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group">
-          <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center text-green-600 shrink-0 font-bold text-sm">
-            ✓
+        <div className="bg-white/95 dark:bg-slate-900/90 p-7 rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
+          <div className="w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-[#FF7A00] shrink-0 font-bold text-sm">
+            <CheckCircle2 className="w-5 h-5 text-[#FF7A00]" />
           </div>
           <div>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Tasks Done</p>
-            <h3 className="text-xl font-bold font-sans text-slate-800 mt-0.5">
+            <h3 className="text-xl font-bold font-sans text-slate-800 dark:text-slate-100 mt-0.5">
               {completedTodayCount} / {totalTodayCount || "3"}
             </h3>
           </div>
         </div>
 
         {/* Metric 4: Multiplier/XP Booster */}
-        <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden group">
-          <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center text-[#FF7A00] shrink-0">
+        <div className="bg-white/95 dark:bg-slate-900/90 p-7 rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
+          <div className="w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-[#FF7A00] shrink-0">
             <Zap className="w-5 h-5 text-[#FF7A00] fill-orange-200" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Focus Multiplier</p>
-            <h3 className="text-xl font-bold font-sans text-slate-800 mt-0.5">1.5x Boost</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Multiplier</p>
+            <h3 className="text-xl font-bold font-sans text-slate-800 dark:text-slate-100 mt-0.5">1.5x Boost</h3>
           </div>
         </div>
       </div>
@@ -128,12 +260,15 @@ export default function DashboardView({
       {/* Bento Layout Row 1: Focus Tasks & Stoic Motivation Banner */}
       <div id="dashboard-main-row" className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Left Side: Today's Focus Checklist (7 cols) */}
-        <div id="dashboard-col-focus" className="lg:col-span-7 bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm flex flex-col">
+        {/* Left Side: Today's Focus Checklist (7 cols) - REMAINS ACTIVE & CRISP EVEN IN DEEP FOCUS! */}
+        <div 
+          id="dashboard-col-focus" 
+          className="lg:col-span-7 bg-white/95 dark:bg-slate-900/95 p-9 rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col transition-all duration-700"
+        >
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-lg font-bold font-sans text-slate-800 tracking-tight">Today's Focus</h2>
-              <p className="text-xs text-slate-400 font-mono">Gain XP bonuses for each checkoff.</p>
+              <h2 className="text-lg font-bold font-sans text-slate-800 dark:text-white tracking-tight">Today's Focus</h2>
+              <p className="text-xs text-slate-450 text-slate-400 font-mono">Completed items award direct XP parameters.</p>
             </div>
             <button 
               onClick={() => onNavigate("tasks")}
@@ -154,10 +289,10 @@ export default function DashboardView({
                 <div 
                   id={`dashboard-task-card-${task.id}`}
                   key={task.id}
-                  className={`p-4 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                  className={`p-4 rounded-2xl flex items-center justify-between gap-3 transition-all border-none ${
                     task.status === "Completed" 
-                      ? "bg-slate-50/50 border-slate-100 text-slate-400" 
-                      : "bg-white border-slate-100 shadow-sm hover:border-slate-200"
+                      ? "bg-slate-50/50 dark:bg-slate-800/30 text-slate-400" 
+                      : "bg-slate-50 dark:bg-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 shadow-[0_4px_16px_rgba(0,0,0,0.01)]"
                   }`}
                 >
                   <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -166,26 +301,26 @@ export default function DashboardView({
                       className="text-slate-200 hover:text-[#FF7A00] transition-colors shrink-0 cursor-pointer"
                     >
                       {task.status === "Completed" ? (
-                        <div className="w-5 h-5 rounded-md border-2 border-[#FF7A00] flex items-center justify-center bg-[#FF7A00]">
+                        <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#FF7A00]">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
                       ) : (
-                        <div className="w-5 h-5 rounded-md border-2 border-slate-200" />
+                        <div className="w-5 h-5 rounded-md border-2 border-slate-200 dark:border-slate-700" />
                       )}
                     </button>
-                    <span className={`text-sm font-medium leading-snug truncate ${
-                      task.status === "Completed" ? "line-through text-slate-400" : "text-slate-700 font-semibold"
+                    <span className={`text-sm font-semibold leading-snug truncate ${
+                      task.status === "Completed" ? "line-through text-slate-400 font-medium" : "text-slate-700 dark:text-slate-200 font-bold"
                     }`}>
                       {task.title}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[10px] font-bold px-2 py-1 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 uppercase tracking-widest">
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-200/40 dark:bg-slate-800 text-slate-400 dark:text-slate-400 uppercase tracking-wider rounded">
                       {task.category || "TASKS"}
                     </span>
-                    <span className="text-[11px] font-bold font-mono text-emerald-500">+{task.xpReward} XP</span>
+                    <span className="text-[10px] font-bold font-mono text-[#FF7A00]">+{task.xpReward} XP</span>
                   </div>
                 </div>
               ))
@@ -193,8 +328,15 @@ export default function DashboardView({
           </div>
         </div>
 
-        {/* Right Side: Stoic / Personal Motivation Widget (5 cols) */}
-        <div id="dashboard-col-stoic" className="lg:col-span-5 bg-gradient-to-r from-slate-800 to-slate-900 rounded-[28px] p-8 text-white flex flex-col justify-between relative overflow-hidden shadow-sm">
+        {/* Right Side: Stoic / Personal Motivation Widget (5 cols) - DIMMED IN DEEP FOCUS */}
+        <div 
+          id="dashboard-col-stoic" 
+          className={`lg:col-span-5 bg-slate-900 p-9 rounded-[36px] text-white flex flex-col justify-between relative overflow-hidden transition-all duration-1000 ${
+            isDeepFocus 
+              ? "opacity-15 pointer-events-none select-none filter saturate-50 blur-[0.2px] hover:opacity-100 hover:pointer-events-auto hover:blur-none hover:saturate-100" 
+              : "opacity-100"
+          }`}
+        >
           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#FF7A00]/10 to-transparent rounded-full -mr-8 -mt-8 pointer-events-none" />
           
           <div className="relative z-10 flex-1">
@@ -220,7 +362,7 @@ export default function DashboardView({
             </p>
           </div>
 
-          <div className="mt-6 border-t border-slate-700/60 pt-4 space-y-3 relative z-10 text-xs">
+          <div className="mt-6 border-t border-slate-800 pt-4 space-y-3 relative z-10 text-xs">
             <div className="flex items-start gap-2">
               <span className="text-[#FF7A00] font-extrabold font-mono text-[10px] shrink-0 mt-0.5">CHALLENGE:</span>
               <p className="text-slate-300 font-medium">
@@ -239,20 +381,27 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* Layout Row 2: Planner Snippet & Quick Idea Capture Bento */}
-      <div id="dashboard-row-bento-2" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Layout Row 2: Planner Snippet & Quick Idea Capture Bento - DIMMED IN DEEP FOCUS */}
+      <div 
+        id="dashboard-row-bento-2" 
+        className={`grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all duration-1000 ${
+          isDeepFocus 
+            ? "opacity-15 pointer-events-none select-none filter saturate-50 blur-[0.2px] hover:opacity-100 hover:pointer-events-auto hover:blur-none hover:saturate-100" 
+            : "opacity-100"
+        }`}
+      >
         
         {/* Quick Idea Capture (1 Col) */}
-        <div id="dashboard-quick-idea" className="bg-white p-7 rounded-[32px] border border-slate-100 shadow-sm flex flex-col justify-between">
+        <div id="dashboard-quick-idea" className="bg-white/95 dark:bg-slate-900/95 p-8 rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-[#FF7A00]">
+              <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-[#FF7A00]">
                 <Lightbulb className="w-4 h-4 text-[#FF7A00] fill-orange-100" />
               </div>
-              <h3 className="font-sans font-bold text-slate-800">Quick Idea Vault</h3>
+              <h3 className="font-sans font-bold text-slate-800 dark:text-slate-100">Quick Idea Vault</h3>
             </div>
             <p className="text-xs text-slate-400 mb-5 leading-normal">
-              Enter any flash startup or video concept. AI will auto-categorize inside Vault.
+              Capture startup or video concepts. System organizes ideas instantly.
             </p>
 
             <form onSubmit={handleQuickIdeaSubmit} className="space-y-3">
@@ -261,7 +410,7 @@ export default function DashboardView({
                 placeholder="Ex: API scanner SaaS..."
                 value={quickIdeaTitle}
                 onChange={(e) => setQuickIdeaTitle(e.target.value)}
-                className="w-full text-xs bg-slate-50 border border-slate-100 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#FF7A00] focus:border-transparent text-slate-800 font-medium"
+                className="w-full text-xs bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#FF7A00] focus:border-transparent text-slate-800 dark:text-slate-100 font-medium"
               />
               <button 
                 type="submit"
@@ -273,21 +422,22 @@ export default function DashboardView({
           </div>
 
           {successMsg && (
-            <p className="text-emerald-500 font-mono text-[10px] text-center mt-3 font-semibold">
-              ✓ Added to Vault! Check 'Idea Vault'.
+            <p className="text-[#FF7A00] font-mono text-[10px] text-center mt-3 font-semibold flex items-center justify-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#FF7A00]" />
+              <span>Saved! Visit 'Idea Vault'.</span>
             </p>
           )}
         </div>
 
         {/* Video Creator Hub Queue Snippet (1 Col) */}
-        <div id="dashboard-creator-snippet" className="bg-white p-7 rounded-[32px] border border-slate-100 shadow-sm flex flex-col justify-between">
+        <div id="dashboard-creator-snippet" className="bg-white/95 dark:bg-slate-900/95 p-8 rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-[#FF7A00]">
+                <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-[#FF7A00]">
                   <Video className="w-4 h-4 text-[#FF7A00]" />
                 </div>
-                <h3 className="font-sans font-bold text-slate-800">Active Video Reels</h3>
+                <h3 className="font-sans font-bold text-slate-800 dark:text-slate-100">Active Video Reels</h3>
               </div>
               <button 
                 onClick={() => onNavigate("content")}
@@ -298,38 +448,38 @@ export default function DashboardView({
             </div>
             
             <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-between">
+              <div className="p-3 bg-slate-50/50 dark:bg-slate-850 rounded-xl flex items-center justify-between">
                 <div className="min-w-0 flex-1 pr-1">
-                  <p className="font-semibold text-slate-800 truncate">Discipline Beats Motivation</p>
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">Discipline Beats Motivation</p>
                   <span className="text-[10px] text-slate-400 font-mono">YouTube</span>
                 </div>
-                <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md text-[9px] font-bold font-mono">READY</span>
+                <span className="bg-orange-500/10 text-[#FF7A00] px-2 py-0.5 rounded-md text-[9px] font-bold font-mono">READY</span>
               </div>
 
-              <div className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-between">
+              <div className="p-3 bg-slate-50/50 dark:bg-slate-850 rounded-xl flex items-center justify-between">
                 <div className="min-w-0 flex-1 pr-1">
-                  <p className="font-semibold text-slate-800 truncate">Football Midfielders</p>
-                  <span className="text-[10px] text-slate-400 font-mono">Shorts</span>
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 truncate font-bold">Football Midfielders</p>
+                  <span className="text-[10px] text-slate-400 font-mono font-medium">Shorts</span>
                 </div>
-                <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded-md text-[9px] font-bold font-mono">EDITING</span>
+                <span className="bg-orange-500/5 text-orange-400 px-2 py-0.5 rounded-md text-[9px] font-bold font-mono">EDITING</span>
               </div>
             </div>
           </div>
 
           <p className="text-slate-400 text-[10px] font-mono italic text-center mt-3">
-            Active channels tracked in creator hub.
+            Digital reels are synchronized inside video hub.
           </p>
         </div>
 
         {/* Micro Skills Bento Preview (1 Col) */}
-        <div id="dashboard-skills-snippet" className="bg-white p-7 rounded-[32px] border border-slate-100 shadow-sm flex flex-col justify-between">
+        <div id="dashboard-skills-snippet" className="bg-white/95 dark:bg-slate-900/95 p-8 rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-orange-100/10 flex items-center justify-center text-[#FF7A00]">
                   <ShieldCheck className="w-4 h-4 text-[#FF7A00]" />
                 </div>
-                <h3 className="font-sans font-bold text-slate-800" onClick={() => onNavigate("skills")}>Master Skills</h3>
+                <h3 className="font-sans font-bold text-slate-800 dark:text-slate-100" onClick={() => onNavigate("skills")}>Master Skills</h3>
               </div>
               <button 
                 onClick={() => onNavigate("skills")}
@@ -343,10 +493,10 @@ export default function DashboardView({
               {skills.slice(0, 3).map((s) => (
                 <div key={s.name} id={`skills-snippet-row-${s.name}`}>
                   <div className="flex justify-between items-center text-xs text-slate-700 font-medium mb-1">
-                    <span className="font-semibold text-slate-700">{s.name}</span>
-                    <span className="font-mono text-slate-400 font-bold">Lvl {s.level} ({s.progress}%)</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{s.name}</span>
+                    <span className="font-mono text-slate-400 dark:text-slate-450 font-bold text-[10px]">Lvl {s.level} ({s.progress}%)</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                     <div 
                       style={{ width: `${s.progress}%` }}
                       className="bg-[#FF7A00] h-full rounded-full"
@@ -358,11 +508,144 @@ export default function DashboardView({
           </div>
 
           <p className="text-[10px] text-slate-400 font-mono italic text-center mt-4 pt-1">
-            Unlock badge progress via skills roadmaps.
+            Unlock badges upon study matrix rank ups.
           </p>
         </div>
 
       </div>
+
+      {/* ========================================================== */}
+      {/* FLOATING ACTION BUTTON (FAB) FOR INSTANT NLP TASK CREATION */}
+      {/* ========================================================== */}
+      <div 
+        id="nlp-fab-system" 
+        className="fixed bottom-8 right-8 z-[90] flex flex-col items-end"
+      >
+        {/* Expanded NLP Panel */}
+        {fabOpen && (
+          <div 
+            className="mb-4 w-[360px] md:w-[410px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.18)] p-6 border-none text-left animate-in fade-in slide-in-from-bottom-6 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800/80 mb-3.5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#FF7A00] animate-pulse" />
+                <h4 className="text-xs font-bold font-sans text-slate-800 dark:text-slate-200">Instant NLP Task Wizard</h4>
+              </div>
+              <button 
+                onClick={() => setFabOpen(false)}
+                className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateNLPTask} className="space-y-4">
+              <div className="relative">
+                <input
+                  ref={fabInputRef}
+                  type="text"
+                  placeholder="e.g. Code auth system tomorrow high priority"
+                  value={nlpInput}
+                  onChange={(e) => setNlpInput(e.target.value)}
+                  className="w-full p-3.5 bg-slate-50 dark:bg-slate-850 rounded-2xl text-xs text-slate-850 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#FF7A00] font-sans font-medium"
+                />
+              </div>
+
+              {/* Live Preview Badges Block */}
+              {nlpInput.trim().length > 2 && (
+                <div className="p-3 bg-slate-50/60 dark:bg-slate-850/60 rounded-2xl space-y-2 text-[11px] animate-in fade-in slide-in-from-top-1 duration-200">
+                  <p className="text-[10px] font-mono font-bold text-[#FF7A00] uppercase tracking-wide">Live Parsing Matrix:</p>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-slate-300">
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[9px] text-slate-400 uppercase font-mono">Title</span>
+                      <span className="font-bold truncate text-slate-800 dark:text-slate-200">
+                        {parsedTask.title}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] text-slate-400 uppercase font-mono">Priority</span>
+                      <span className="font-bold text-[#FF7A00] flex items-center gap-1">
+                        <Flame className="w-3 h-3 text-[#FF7A00] shrink-0" />
+                        <span>{parsedTask.priority}</span>
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] text-slate-400 uppercase font-mono">Due Date</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span>{parsedTask.deadline}</span>
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] text-slate-400 uppercase font-mono">Auto Class</span>
+                      <span className="font-bold text-[#FF7A00] flex items-center gap-1">
+                        <Lightbulb className="w-3.5 h-3.5 text-[#FF7A00] shrink-0 fill-orange-100" />
+                        <span>{parsedTask.category}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit triggers */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[9px] text-slate-400 font-mono leading-relaxed max-w-[180px]">
+                  Hit <strong>Enter ↵</strong> to construct the item instantly.
+                </span>
+
+                <button
+                  type="submit"
+                  disabled={!nlpInput.trim()}
+                  className="bg-slate-900 hover:bg-[#FF7A00] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1 cursor-pointer disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Build Task</span>
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-start gap-1.5 text-[10px] text-slate-400 leading-relaxed font-mono">
+              <AlertCircle className="w-3.5 h-3.5 text-[#FF7A00] shrink-0 mt-0.5" />
+              <span>Supports words: 'today', 'tomorrow', 'friday', 'high', 'low', 'priority'.</span>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Trigger Circle */}
+        <button
+          id="nlp-fab-btn"
+          onClick={() => setFabOpen(!fabOpen)}
+          className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-all transform hover:scale-105 active:scale-95 cursor-pointer relative ${
+            fabOpen
+              ? "bg-slate-900 rotate-45 select-none"
+              : "bg-gradient-to-br from-[#FF7A00] to-[#FF9F45] shadow-orange-500/10 hover:shadow-orange-500/20"
+          }`}
+          title="Instant NLP Task Creator"
+        >
+          {nlpSuccess ? (
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1.1, opacity: 1 }}
+              className="text-white text-xs font-bold"
+            >
+              ✓
+            </motion.div>
+          ) : (
+            <div className="relative">
+              <Plus className="w-6 h-6 text-white stroke-[2.5]" />
+              {!fabOpen && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-white rounded-full animate-ping pointer-events-none" />
+              )}
+            </div>
+          )}
+        </button>
+      </div>
+
     </div>
   );
 }

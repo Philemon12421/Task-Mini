@@ -36,7 +36,7 @@ export default function MotivationView({
     if (challengeCompleted) return;
     setChallengeCompleted(true);
     onAddXP(50);
-    alert("🔥 Daily discipline challenge complete! Earned +50 XP.");
+    alert("Daily discipline challenge complete! Earned +50 XP.");
   };
 
   return (
@@ -76,7 +76,10 @@ export default function MotivationView({
                 : "bg-white border-slate-100 text-slate-650 text-slate-700 hover:bg-slate-50"
             }`}
           >
-            🔥 {cat}
+            <span className="flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 shrink-0" />
+              <span>{cat}</span>
+            </span>
           </button>
         ))}
       </div>

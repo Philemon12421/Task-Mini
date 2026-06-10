@@ -18,8 +18,37 @@ import IdeaVaultView from "./components/IdeaVaultView";
 import ContentHubView from "./components/ContentHubView";
 import MotivationView from "./components/MotivationView";
 import AnalyticsView from "./components/AnalyticsView";
+import SocialScheduleView from "./components/SocialScheduleView";
+import CommandPalette from "./components/CommandPalette";
 
 export default function App() {
+  // --------------------------------------------------
+  // Command Palette & Deep Focus State
+  // --------------------------------------------------
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isDeepFocus, setIsDeepFocus] = useState<boolean>(() => {
+    return localStorage.getItem("tm_deep_focus") === "true";
+  });
+
+  // --------------------------------------------------
+  // Fresh Restart Trigger: Sets state to 0 XP & Level 0
+  // --------------------------------------------------
+  useEffect(() => {
+    const isReset = localStorage.getItem("tm_v3_fresh_reset");
+    if (!isReset) {
+      localStorage.clear();
+      // Set initial fresh state parameters
+      localStorage.setItem("tm_v3_fresh_reset", "true");
+      localStorage.setItem("tm_user_xp", "0");
+      localStorage.setItem("tm_unlocked_badges", "[]");
+      localStorage.setItem("tm_deep_focus", "false");
+      // Load baseline non-completed tasks
+      const defaultUncompletedTasks = INITIAL_TASKS.map(t => ({ ...t, status: t.status === "Completed" ? "Todo" as const : t.status }));
+      localStorage.setItem("tm_tasks", JSON.stringify(defaultUncompletedTasks));
+      window.location.reload();
+    }
+  }, []);
+
   // --------------------------------------------------
   // Routing / View Tab State
   // --------------------------------------------------
@@ -30,12 +59,12 @@ export default function App() {
   // --------------------------------------------------
   const [userXP, setUserXP] = useState<number>(() => {
     const saved = localStorage.getItem("tm_user_xp");
-    return saved ? Number(saved) : 1850; // starts with custom XP
+    return saved ? Number(saved) : 0; // starts afresh with 0 XP
   });
 
   const [unlockedBadges, setUnlockedBadges] = useState<string[]>(() => {
     const saved = localStorage.getItem("tm_unlocked_badges");
-    return saved ? JSON.parse(saved) : ["UI Beginner", "Vibe Architect", "Shell Cadet"];
+    return saved ? JSON.parse(saved) : []; // starts afresh with no badges
   });
 
   const streakDays = 32;
@@ -43,10 +72,11 @@ export default function App() {
 
   // Compute Level
   const getUserLevel = (xp: number) => {
-    if (xp < 1000) return { level: 1, title: "Newbie Builder" };
-    if (xp < 2000) return { level: 2, title: "Explorer" };
-    if (xp < 3500) return { level: 3, title: "System Builder" };
-    if (xp < 5500) return { level: 4, title: "Professional Engineer" };
+    if (xp < 500) return { level: 0, title: "Acolyte Initiate" };
+    if (xp < 1200) return { level: 1, title: "Newbie Builder" };
+    if (xp < 2500) return { level: 2, title: "Explorer Node" };
+    if (xp < 4500) return { level: 3, title: "Discipline Architect" };
+    if (xp < 7000) return { level: 4, title: "Vibe Engineer" };
     return { level: 5, title: "Master Architect" };
   };
 
@@ -60,6 +90,22 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("tm_unlocked_badges", JSON.stringify(unlockedBadges));
   }, [unlockedBadges]);
+
+  useEffect(() => {
+    localStorage.setItem("tm_deep_focus", isDeepFocus.toString());
+  }, [isDeepFocus]);
+
+  // Hook for Cmd+K Command Palette
+  useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalShortcuts);
+    return () => window.removeEventListener("keydown", handleGlobalShortcuts);
+  }, []);
 
   const addXP = (amount: number) => {
     setUserXP((prev) => {
@@ -417,6 +463,7 @@ export default function App() {
         return (
           <DashboardView
             tasks={tasks}
+            addTask={addTask}
             goals={goals}
             skills={skills}
             motivation={motivation}
@@ -427,6 +474,7 @@ export default function App() {
             onRefreshMotivation={handleRefreshDefaultMotivation}
             isLoadingMotivation={loadingMotivation}
             onNavigate={setCurrentTab}
+            isDeepFocus={isDeepFocus}
           />
         );
       case "tasks":
@@ -498,6 +546,10 @@ export default function App() {
             onUpdateVideoInChannel={updateVideoInChannel}
           />
         );
+      case "schedule":
+        return (
+          <SocialScheduleView onAddXP={addXP} />
+        );
       case "analytics":
         return (
           <AnalyticsView
@@ -526,22 +578,102 @@ export default function App() {
   };
 
   return (
-    <div id="personal-os-app-root" className="flex min-h-screen bg-[#F8F9FB] text-[#1E293B]">
-      
-      {/* Persistent Left Sidebar Navigation */}
-      <Sidebar
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-        userXP={userXP}
-        userLevel={userLevel}
-        streakDays={streakDays}
-      />
+    <div
+      id="personal-os-app-root"
+      className={`flex min-h-screen transition-colors duration-1000 ${
+        isDeepFocus ? "bg-[#0A0F1D] text-slate-100" : "bg-[#F8F9FB] text-[#1E293B]"
+      }`}
+    >
+      {/* Collapsible Left Sidebar Navigation */}
+      {!isDeepFocus && (
+        <Sidebar
+          currentTab={currentTab}
+          setCurrentTab={setCurrentTab}
+          userXP={userXP}
+          userLevel={userLevel}
+          streakDays={streakDays}
+        />
+      )}
 
       {/* Main Viewport Content Area */}
-      <main id="main-viewport-content" className="flex-1 overflow-y-auto px-8 py-8 h-screen">
-        {renderActiveTab()}
+      <main
+        id="main-viewport-content"
+        className={`flex-1 overflow-y-auto px-8 py-6 h-screen flex flex-col transition-all duration-1000 ${
+          isDeepFocus ? "bg-[#060A13]" : "bg-[#F8F9FB]"
+        }`}
+      >
+        {/* Universal Sticky Header Bar */}
+        <div
+          id="universal-top-header"
+          className={`flex items-center justify-between pb-4 mb-6 border-b shrink-0 transition-all ${
+            isDeepFocus ? "border-slate-800/60" : "border-slate-100"
+          }`}
+        >
+          {/* Left indicator trail */}
+          <div className="flex items-center gap-3">
+            {isDeepFocus && (
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF7A00]"></span>
+              </span>
+            )}
+            <span
+              className={`text-[10px] font-mono font-bold tracking-widest uppercase transition-colors ${
+                isDeepFocus ? "text-orange-400" : "text-slate-400"
+              }`}
+            >
+              {isDeepFocus ? "⚡ Deep Focus session active" : `System // ${currentTab}`}
+            </span>
+          </div>
+
+          {/* Core Cmd+K indicator */}
+          <button
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className={`hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-[10px] font-mono transition-all cursor-pointer ${
+              isDeepFocus
+                ? "bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white hover:border-slate-705"
+                : "bg-white border-slate-200/50 text-slate-400 hover:text-slate-600 hover:border-slate-350 shadow-sm"
+            }`}
+          >
+            <span>Search Workspace</span>
+            <kbd className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-[8px] font-bold">⌘K</kbd>
+          </button>
+
+          {/* Header Action controls */}
+          <div className="flex items-center gap-4">
+            <button
+              id="deep-focus-switch"
+              onClick={() => setIsDeepFocus(!isDeepFocus)}
+              className={`px-4 py-2 rounded-2xl text-xs font-bold font-sans transition-all flex items-center gap-2 cursor-pointer shadow-sm ${
+                isDeepFocus
+                  ? "bg-gradient-to-r from-orange-500 to-[#FF7A00] text-white hover:scale-[1.03] active:scale-95 border-transparent"
+                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+              }`}
+            >
+              <span>{isDeepFocus ? "✨ Exit Focus Mode" : "🎯 Deep Focus"}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic active view body viewport */}
+        <div
+          className={`flex-1 transition-all duration-700 ${
+            isDeepFocus ? "max-w-4xl mx-auto w-full pt-4" : "w-full"
+          }`}
+        >
+          {renderActiveTab()}
+        </div>
       </main>
 
+      {/* Shortcuts Command Palette Modal */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        tasks={tasks}
+        goals={goals}
+        ideas={ideas}
+        onNavigate={setCurrentTab}
+      />
     </div>
   );
 }

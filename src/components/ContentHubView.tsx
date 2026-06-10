@@ -1,6 +1,6 @@
 import { useState, FormEvent } from "react";
 import { ContentChannel, ContentVideo } from "../types";
-import { Plus, Eye, BookOpen, Trash, AlertTriangle, Calendar } from "lucide-react";
+import { Plus, Eye, BookOpen, Trash, AlertTriangle, Calendar, Video, Palette } from "lucide-react";
 
 interface ContentHubViewProps {
   channels: ContentChannel[];
@@ -167,7 +167,10 @@ export default function ContentHubView({
                 : "border-transparent text-slate-400 hover:text-slate-600"
             }`}
           >
-            🎬 {ch.name}
+            <span className="flex items-center gap-1.5 justify-center">
+              <Video className="w-3.5 h-3.5" />
+              <span>{ch.name}</span>
+            </span>
           </button>
         ))}
       </div>
@@ -326,7 +329,10 @@ export default function ContentHubView({
                     </div>
 
                     <div className="flex justify-between items-end text-[8px] font-mono text-slate-400 bg-white/5 p-1 rounded">
-                      <span>🎨 Recommendation: Primary accent highlights #FF7A00, high contrast slate background.</span>
+                      <span className="flex items-center gap-1">
+                        <Palette className="w-3 h-3 text-[#FF7A00]" />
+                        <span>Recommendation: Primary accent highlights #FF7A00, high contrast slate background.</span>
+                      </span>
                     </div>
                   </div>
 

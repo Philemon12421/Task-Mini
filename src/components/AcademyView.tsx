@@ -58,7 +58,7 @@ export default function AcademyView({
       if (l.id === lessonId && !l.completed) {
         onUnlockBadge(l.badge);
         onAddXP(l.xp);
-        alert(`🏆 Course item complete! You completed the milestone lesson and unlocked the badge: "${l.badge}"!`);
+        alert(`Course item complete! You completed the milestone lesson and unlocked the badge: "${l.badge}"!`);
         return { ...l, completed: true };
       }
       return l;
@@ -142,18 +142,18 @@ export default function AcademyView({
                   key={les.id}
                   className={`p-4 rounded-2xl border flex items-start justify-between gap-3 transition-all ${
                     les.completed
-                      ? "bg-emerald-50/50 border-emerald-100 text-emerald-800"
+                      ? "bg-orange-500/5 border-orange-200/50 text-[#FF7A00]"
                       : "bg-white border-slate-100 shadow-sm hover:border-slate-200"
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <span className={`w-6 h-6 rounded-full flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5 ${
-                      les.completed ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"
+                      les.completed ? "bg-[#FF7A00] text-white" : "bg-slate-100 text-slate-500"
                     }`}>
                       {index + 1}
                     </span>
                     <div>
-                      <p className={`text-xs font-bold ${les.completed ? "text-green-800" : "text-slate-700"}`}>
+                      <p className={`text-xs font-bold ${les.completed ? "text-slate-800" : "text-slate-700"}`}>
                         {les.title}
                       </p>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[10px] font-mono text-slate-400">
@@ -164,17 +164,17 @@ export default function AcademyView({
                   </div>
 
                   <div className="text-right shrink-0 flex items-center gap-3">
-                    <span className="text-xs font-bold font-mono text-emerald-600">+{les.xp} XP</span>
+                    <span className="text-xs font-bold font-mono text-[#FF7A00]">+{les.xp} XP</span>
                     <button
                       disabled={les.completed}
                       onClick={() => handleLessonComplete(les.id)}
                       className={`text-[10px] whitespace-nowrap px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer ${
                         les.completed
-                          ? "bg-green-50 border-green-100 text-green-700 font-semibold cursor-default"
-                          : "bg-slate-50 border-slate-100 text-slate-705 text-slate-700 hover:bg-[#FF7A00] hover:text-white hover:border-transparent"
+                          ? "bg-orange-500/10 border-orange-200/30 text-[#FF7A00] font-semibold cursor-default"
+                          : "bg-slate-50 border-slate-100 text-slate-700 hover:bg-[#FF7A00] hover:text-white hover:border-transparent"
                       }`}
                     >
-                      {les.completed ? "Complete ✔" : "Pass Lesson"}
+                      {les.completed ? "Complete" : "Pass Lesson"}
                     </button>
                   </div>
                 </div>

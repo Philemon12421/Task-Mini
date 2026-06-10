@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, RotateCcw, Volume2, ShieldAlert, Award, Calendar, CheckSquare, Activity, VolumeX } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, ShieldAlert, Award, Calendar, CheckSquare, Activity, VolumeX, Lightbulb } from "lucide-react";
 import { motion } from "motion/react";
 
 interface PlannerViewProps {
@@ -44,12 +44,12 @@ export default function PlannerView({
               onAddXP(30);
               setSessionCount(prevCount => prevCount + 1);
               setFocusedMinutesTotal(prevTotal => prevTotal + 25);
-              alert("🔥 Fantastic work, Philemon! Session completed. Earned +30 XP. Time for a 5-minute breather!");
+              alert("Fantastic work, Philemon! Session completed. Earned +30 XP. Time for a 5-minute breather!");
               // Go to break
               setIsBreak(true);
               return 5 * 60;
             } else {
-              alert("☀️ Break over. Time to lock back in!");
+              alert("Break over. Time to lock back in!");
               setIsBreak(false);
               return 25 * 60;
             }
@@ -118,9 +118,9 @@ export default function PlannerView({
           <div className="flex justify-between items-center mb-6">
             <div>
               <span className={`text-[10px] font-mono font-bold uppercase px-3 py-1 rounded-full ${
-                isBreak ? "bg-green-50 text-green-600" : "bg-[#FF7A00]/10 text-[#FF7A00]"
+                isBreak ? "bg-orange-500/10 text-[#FF7A00]" : "bg-[#FF7A00]/10 text-[#FF7A00]"
               }`}>
-                {isBreak ? "💆 Break Mode" : "🎯 Intense Focus"}
+                {isBreak ? "Break Mode" : "Intense Focus"}
               </span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
@@ -326,7 +326,7 @@ export default function PlannerView({
         </div>
 
         <div className="mt-8 p-4 rounded-2xl bg-orange-50/50 border border-orange-100/50 text-xs flex items-center gap-3">
-          <span className="text-xl">💡</span>
+          <Lightbulb className="w-5 h-5 text-[#FF7A00] shrink-0 fill-orange-100" />
           <p className="text-slate-600 font-medium leading-relaxed">
             <span className="font-bold text-[#FF7A00]">Philemon's Tip</span>: Complete a daily timetabled block to earn <span className="font-bold text-slate-700">+10 XP</span> instantly! Build structural discipline.
           </p>

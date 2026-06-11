@@ -3,9 +3,9 @@ import { Task, Goal, Skill, MotivationState, Category } from "../types";
 import { 
   CheckCircle2, Circle, Clock, Flame, BookOpen, ChevronRight, 
   Lightbulb, ShieldCheck, Video, RefreshCw, Zap, Plus, Sparkles, X, AlertCircle,
-  Code, Briefcase, User
+  Code, Briefcase, User, StickyNote, Trash2, FileText, Check
 } from "lucide-react";
-import { useState, FormEvent, useEffect, useRef } from "react";
+import { useState, FormEvent, useEffect, useRef, MouseEvent } from "react";
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -50,6 +50,70 @@ export default function DashboardView({
 
   // Category state for interactive matrix & checklist filter
   const [selectedCategory, setSelectedCategory] = useState<Category | "All">("All");
+
+  // Floating Quick Note States for Fleeting Thoughts
+  const [quickNoteOpen, setQuickNoteOpen] = useState(false);
+  const [quickNoteTitle, setQuickNoteTitle] = useState("");
+  const [quickNoteContent, setQuickNoteContent] = useState("");
+  const [quickNoteSuccess, setQuickNoteSuccess] = useState(false);
+  const [quickNotes, setQuickNotes] = useState<{ id: string; title: string; content: string; createdAt: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem("mini_task_quick_notes");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleSaveQuickNote = (e: FormEvent) => {
+    e.preventDefault();
+    if (!quickNoteContent.trim() && !quickNoteTitle.trim()) return;
+
+    const newNote = {
+      id: "note-" + Date.now(),
+      title: quickNoteTitle.trim() || "Fleeting Thought",
+      content: quickNoteContent.trim(),
+      createdAt: new Date().toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    const updatedNotes = [newNote, ...quickNotes];
+    setQuickNotes(updatedNotes);
+    localStorage.setItem("mini_task_quick_notes", JSON.stringify(updatedNotes));
+
+    setQuickNoteTitle("");
+    setQuickNoteContent("");
+    setQuickNoteSuccess(true);
+    setTimeout(() => setQuickNoteSuccess(false), 2000);
+  };
+
+  const handleDeleteQuickNote = (id: string, e: MouseEvent) => {
+    e.stopPropagation();
+    const updatedNotes = quickNotes.filter(n => n.id !== id);
+    setQuickNotes(updatedNotes);
+    localStorage.setItem("mini_task_quick_notes", JSON.stringify(updatedNotes));
+  };
+
+  const handleConvertToTask = (note: { id: string; title: string; content: string }, e: MouseEvent) => {
+    e.stopPropagation();
+    addTask({
+      title: note.title !== "Fleeting Thought" ? `${note.title}: ${note.content}` : note.content,
+      category: "Personal",
+      deadline: "2026-06-11",
+      priority: "Medium",
+      status: "Todo",
+      tags: ["FromNote", "FleetingNote"],
+      xpReward: 15
+    });
+    
+    const updatedNotes = quickNotes.filter(n => n.id !== note.id);
+    setQuickNotes(updatedNotes);
+    localStorage.setItem("mini_task_quick_notes", JSON.stringify(updatedNotes));
+  };
 
   const handleQuickIdeaSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -682,7 +746,7 @@ export default function DashboardView({
       {/* ========================================================== */}
       <div 
         id="nlp-fab-system" 
-        className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-[90] flex flex-col items-end max-w-[calc(100vw-2rem)]"
+        className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-[90] flex flex-col items-end gap-3.5 max-w-[calc(100vw-2rem)]"
       >
         {/* Expanded NLP Panel */}
         {fabOpen && (
@@ -779,6 +843,23 @@ export default function DashboardView({
           </div>
         )}
 
+        {/* Quick Note Floating Button */}
+        {!isDeepFocus && (
+          <button
+            id="quick-note-floating-btn"
+            onClick={() => setQuickNoteOpen(true)}
+            className="w-14 h-14 rounded-full bg-slate-900 dark:bg-slate-800 border border-slate-850 dark:border-slate-700 text-white shadow-xl transition-all transform hover:scale-110 active:scale-95 cursor-pointer flex items-center justify-center relative hover:bg-slate-800"
+            title="Capture Fleeting Thought"
+          >
+            <StickyNote className="w-5 h-5 text-[#FF7A00]" />
+            {quickNotes.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#FF7A00] text-white text-[9px] font-bold font-mono h-5 w-5 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 animate-pulse">
+                {quickNotes.length}
+              </span>
+            )}
+          </button>
+        )}
+
         {/* Floating Trigger Circle */}
         <button
           id="nlp-fab-btn"
@@ -808,6 +889,148 @@ export default function DashboardView({
           )}
         </button>
       </div>
+
+      {/* ========================================================== */}
+      {/* QUICK NOTE / FLEETING THOUGHTS MODAL */}
+      {/* ========================================================== */}
+      {quickNoteOpen && (
+        <div 
+          id="quick-note-modal-overlay"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setQuickNoteOpen(false)}
+        >
+          <div 
+            id="quick-note-modal"
+            className="bg-white dark:bg-slate-900 rounded-[32px] w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center bg-slate-50/50 dark:bg-slate-850/50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-[#FF7A00]/10 text-[#FF7A00]">
+                  <StickyNote className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 font-sans tracking-tight">Fleeting Thoughts Deck</h3>
+                  <p className="text-[10px] text-slate-400 font-mono font-medium">Capture spontaneous ideas, raw brainstorms or key logs.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setQuickNoteOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-650 cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content area */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              {/* Form to add a new fleeting thought */}
+              <form onSubmit={handleSaveQuickNote} className="space-y-4 bg-slate-50/50 dark:bg-slate-850/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold font-mono text-slate-400 dark:text-slate-500 uppercase tracking-wider">Concept Brief (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Brainstorming new layout idea, potential feature..."
+                    value={quickNoteTitle}
+                    onChange={(e) => setQuickNoteTitle(e.target.value)}
+                    className="w-full text-xs font-medium font-sans p-3 bg-white dark:bg-slate-850 border border-slate-100 dark:border-slate-800/80 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#FF7A00] text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold font-mono text-slate-400 dark:text-slate-500 uppercase tracking-wider">Fleeting Raw Thought</label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="What's on your mind? Capture it unfiltered here..."
+                    value={quickNoteContent}
+                    onChange={(e) => setQuickNoteContent(e.target.value)}
+                    className="w-full text-xs font-medium font-sans p-3 bg-white dark:bg-slate-850 border border-slate-100 dark:border-slate-800/80 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#FF7A00] text-slate-800 dark:text-slate-200 resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    {quickNoteSuccess && (
+                      <div className="text-[10px] font-mono font-bold text-emerald-500 flex items-center gap-1 animate-pulse">
+                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>Saved to local deck</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={!quickNoteContent.trim() && !quickNoteTitle.trim()}
+                    className="bg-[#FF7A00] hover:bg-[#E06B00] text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Archive Thought</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* History list */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 font-sans tracking-tight">Saved Fleeting Deck ({quickNotes.length})</h4>
+                  <span className="text-[9px] text-slate-400 font-mono">Will be lost if browser cache is cleared.</span>
+                </div>
+
+                {quickNotes.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-slate-150 dark:border-slate-800/50 rounded-2xl flex flex-col items-center justify-center p-4">
+                    <FileText className="w-8 h-8 text-slate-300 dark:text-slate-650 mb-2" />
+                    <p className="text-xs text-slate-400 font-medium font-mono">Capture deck is empty. Fleeting thoughts are healthy!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                    {quickNotes.map((note) => (
+                      <div 
+                        key={note.id}
+                        className="bg-slate-50 dark:bg-slate-850/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800/65 flex flex-col justify-between gap-3 text-left hover:border-slate-200 dark:hover:border-slate-700/80 transition-all"
+                      >
+                        <div>
+                          <div className="flex justify-between items-start gap-2 mb-1">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                              {note.title}
+                            </span>
+                            <span className="text-[9.5px] font-mono text-slate-400 dark:text-slate-500 shrink-0 font-bold uppercase">
+                              {note.createdAt}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
+                            {note.content}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+                          <button
+                            onClick={(e) => handleConvertToTask(note, e)}
+                            className="text-[10px] font-bold text-[#FF7A00] hover:text-[#E06B00] flex items-center gap-1 uppercase tracking-wider cursor-pointer hover:underline"
+                            title="Turn this note into an actionable task in your todo list"
+                          >
+                            <Zap className="w-3 h-3 fill-orange-200 text-[#FF7A00]" />
+                            <span>Actionise Task (+15 XP)</span>
+                          </button>
+                          
+                          <button
+                            onClick={(e) => handleDeleteQuickNote(note.id, e)}
+                            className="text-slate-450 dark:text-slate-500 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1 rounded-lg cursor-pointer transition-colors"
+                            title="Discard the thought"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -145,10 +145,10 @@ export default function DashboardView({
     { 
       name: "Software Engineering", 
       icon: Code, 
-      color: "text-blue-500", 
-      bg: "bg-blue-50", 
-      border: "border-blue-100", 
-      darkBg: "dark:bg-blue-950/20" 
+      color: "text-indigo-600 dark:text-indigo-400", 
+      bg: "bg-indigo-50/70", 
+      border: "border-indigo-100/60", 
+      darkBg: "dark:bg-indigo-950/25" 
     },
     { 
       name: "Cybersecurity", 

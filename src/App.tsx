@@ -95,6 +95,11 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem("tm_deep_focus", isDeepFocus.toString());
+    if (isDeepFocus) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, [isDeepFocus]);
 
   // Hook for Cmd+K Command Palette
@@ -688,7 +693,7 @@ export default function App() {
     <div
       id="personal-os-app-root"
       className={`flex min-h-screen transition-colors duration-1000 ${
-        isDeepFocus ? "bg-[#0A0F1D] text-slate-100" : "bg-[#F8F9FB] text-[#1E293B]"
+        isDeepFocus ? "bg-[#0B0F19] text-slate-100" : "bg-[#F8F9FB] text-[#1E293B]"
       }`}
     >
       {/* Collapsible Left Sidebar Navigation */}
@@ -708,7 +713,7 @@ export default function App() {
       <main
         id="main-viewport-content"
         className={`flex-1 overflow-y-auto px-4 md:px-8 py-6 h-screen flex flex-col transition-all duration-1000 ${
-          isDeepFocus ? "bg-[#060A13]" : "bg-[#F8F9FB]"
+          isDeepFocus ? "bg-[#0B0F19]" : "bg-[#F8F9FB]"
          }`}
       >
         {/* Universal Sticky Header Bar */}

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { Task, Goal, Skill, TeamMember, Idea, ContentChannel, MotivationState, ContentVideo, TaskStatus } from "./types";
+import { useState, useEffect, FormEvent } from "react";
+import { Task, Goal, Skill, TeamMember, Idea, ContentChannel, MotivationState, ContentVideo, TaskStatus, Category } from "./types";
+import { Plus, Flame, Calendar, Sparkles, CheckCircle2, Check } from "lucide-react";
 import { 
   INITIAL_TASKS, INITIAL_GOALS, INITIAL_SKILLS, INITIAL_TEAM, INITIAL_IDEAS, 
   INITIAL_CHANNELS, INITIAL_MOTIVATION, HOURLY_TIMELINE 
@@ -106,6 +107,111 @@ export default function App() {
     window.addEventListener("keydown", handleGlobalShortcuts);
     return () => window.removeEventListener("keydown", handleGlobalShortcuts);
   }, []);
+
+  // --------------------------------------------------
+  // Header-integrated 'Add Task' States & NLP Parser
+  // --------------------------------------------------
+  const [headerTaskText, setHeaderTaskText] = useState("");
+  const [isHeaderFocused, setIsHeaderFocused] = useState(false);
+  const [headerSuccess, setHeaderSuccess] = useState(false);
+
+  const parseHeaderTask = (input: string) => {
+    const norm = input.toLowerCase();
+
+    // 1. Priority Matcher
+    let priority: "High" | "Medium" | "Low" = "Medium";
+    if (/\b(high|urgent|important|critical)\b/.test(norm)) {
+      priority = "High";
+    } else if (/\b(low|easy|minor)\b/.test(norm)) {
+      priority = "Low";
+    } else if (/\b(medium|normal|moderate)\b/.test(norm)) {
+      priority = "Medium";
+    }
+
+    // 2. Class Matcher
+    let category: Category = "Personal";
+    if (/\b(code|react|web|app|development|typescript|vite|frontend|backend|program|js|coding)\b/.test(norm)) {
+      category = "Software Engineering";
+    } else if (/\b(cyber|security|hack|ad|pentest|lab|exploit|vulnerability|audit|firewall)\b/.test(norm)) {
+      category = "Cybersecurity";
+    } else if (/\b(video|edit|youtube|shorts|tiktok|reels|render|content|script|audio)\b/.test(norm)) {
+      category = "Content Creation";
+    } else if (/\b(business|agency|client|contract|deal|startup|sales|revenue|invoice)\b/.test(norm)) {
+      category = "Business";
+    }
+
+    // 3. Simple Offset Matcher (Defaulting to Today 2026-06-11)
+    let offsetDays = 0;
+    if (/\btoday\b/.test(norm)) {
+      offsetDays = 0;
+    } else if (/\btomorrow\b/.test(norm)) {
+      offsetDays = 1;
+    } else if (/\bin (\d+) days?\b/.test(norm)) {
+      const match = norm.match(/\bin (\d+) days?\b/);
+      if (match) offsetDays = parseInt(match[1]);
+    } else {
+      const daysOfWeek = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+      for (let i = 0; i < daysOfWeek.length; i++) {
+        if (new RegExp(`\\b${daysOfWeek[i]}\\b`).test(norm)) {
+          const todayIndex = 4; // Thursday June 11, 2026
+          const targetDayIndex = i;
+          if (targetDayIndex > todayIndex) {
+            offsetDays = targetDayIndex - todayIndex;
+          } else {
+            offsetDays = 7 - todayIndex + targetDayIndex;
+          }
+          break;
+        }
+      }
+    }
+
+    const refDate = new Date("2026-06-11");
+    refDate.setDate(refDate.getDate() + offsetDays);
+    const yyyy = refDate.getFullYear();
+    const mm = String(refDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(refDate.getDate()).padStart(2, '0');
+    const deadline = `${yyyy}-${mm}-${dd}`;
+
+    // 4. Clean Title Stripper
+    let title = input;
+    const regexes = [
+      /\b(today|tonight|tomorrow|next week)\b/gi,
+      /\bin \d+ days?\b/gi,
+      /\b(high|urgent|important|critical|medium|normal|moderate|low|easy|minor)\b/gi,
+      /\b(priority|for today|for tomorrow|due today|due tomorrow|by today|by tomorrow)\b/gi,
+      /\b(on monday|on tuesday|on wednesday|on thursday|on friday|on saturday|on sunday|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi
+    ];
+    regexes.forEach((r) => { title = title.replace(r, ""); });
+    title = title.replace(/\s+/g, " ").trim();
+    title = title.replace(/\s(for|on|at|by|with|due)$/i, "").trim();
+    title = title.replace(/^[,\s\-\:]+/, "").replace(/[,\s\-\:]+$/, "").trim();
+
+    if (!title) title = input.trim() || "";
+
+    return { title, priority, category, deadline };
+  };
+
+  const handleHeaderTaskSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!headerTaskText.trim()) return;
+
+    const parsed = parseHeaderTask(headerTaskText);
+    addTask({
+      title: parsed.title || headerTaskText.trim(),
+      priority: parsed.priority,
+      category: parsed.category,
+      deadline: parsed.deadline,
+      status: "Todo",
+      tags: ["HeaderQuickAdd"],
+      xpReward: parsed.priority === "High" ? 30 : parsed.priority === "Medium" ? 20 : 10
+    });
+
+    setHeaderTaskText("");
+    setHeaderSuccess(true);
+    setTimeout(() => {
+      setHeaderSuccess(false);
+    }, 2000);
+  };
 
   const addXP = (amount: number) => {
     setUserXP((prev) => {
@@ -344,9 +450,9 @@ export default function App() {
         if (i.id === id) {
           return {
             ...i,
-            category: data.category,
-            tags: data.tags,
-            commentary: data.commentary
+            category: data?.category || "Startup Ideas",
+            tags: Array.isArray(data?.tags) ? data.tags : ["Draft"],
+            commentary: data?.commentary || "Draft idea recorded."
           };
         }
         return i;
@@ -436,11 +542,11 @@ export default function App() {
       });
       const data = await res.json();
       setMotivation({
-        quote: data.quote,
-        author: data.author,
-        videoTopic: data.videoTopic,
-        articleTitle: data.articleTitle,
-        challenge: data.challenge,
+        quote: data?.quote || "Discipline is choosing between what you want now and what you want most.",
+        author: data?.author || "Abraham Lincoln",
+        videoTopic: data?.videoTopic || "How to Build Unshakeable Self-Discipline (Atomic Habits Blueprint)",
+        articleTitle: data?.articleTitle || "Navigating Friction: Why Boring Work is the Secret to Expertise",
+        challenge: data?.challenge || "Write code or study with absolutely zero social media tabs open.",
         category: cat
       });
     } catch (e) {
@@ -605,46 +711,173 @@ export default function App() {
         {/* Universal Sticky Header Bar */}
         <div
           id="universal-top-header"
-          className={`flex items-center justify-between pb-4 mb-6 border-b shrink-0 transition-all ${
+          className={`flex flex-col gap-3.5 md:flex-row md:items-center md:justify-between pb-4 mb-6 border-b shrink-0 transition-all ${
             isDeepFocus ? "border-slate-800/60" : "border-slate-100"
           }`}
         >
-          {/* Left indicator trail */}
-          <div className="flex items-center gap-3">
-            {isDeepFocus && (
-              <span className="flex h-2.5 w-2.5 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF7A00]"></span>
+          {/* Row 1 / Left indicator trail & focus switch on mobile */}
+          <div className="flex items-center justify-between w-full md:w-auto gap-4">
+            <div className="flex items-center gap-3">
+              {isDeepFocus && (
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF7A00]"></span>
+                </span>
+              )}
+              <span
+                className={`text-[10px] font-mono font-bold tracking-widest uppercase transition-colors ${
+                  isDeepFocus ? "text-orange-400" : "text-slate-400"
+                }`}
+              >
+                {isDeepFocus ? "⚡ Focus Mode" : `System // ${currentTab}`}
               </span>
-            )}
-            <span
-              className={`text-[10px] font-mono font-bold tracking-widest uppercase transition-colors ${
-                isDeepFocus ? "text-orange-400" : "text-slate-400"
+            </div>
+
+            {/* Mobile Deep Focus Switch */}
+            <button
+              onClick={() => setIsDeepFocus(!isDeepFocus)}
+              className={`md:hidden px-3 py-1.5 rounded-xl text-[10px] font-bold font-sans transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                isDeepFocus
+                  ? "bg-gradient-to-r from-orange-500 to-[#FF7A00] text-white border-transparent"
+                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
               }`}
             >
-              {isDeepFocus ? "⚡ Deep Focus session active" : `System // ${currentTab}`}
-            </span>
+              <span>{isDeepFocus ? "✨ Exit Focus" : "🎯 Focus"}</span>
+            </button>
           </div>
 
-          {/* Core Cmd+K indicator */}
-          <button
-            onClick={() => setIsCommandPaletteOpen(true)}
-            className={`hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-[10px] font-mono transition-all cursor-pointer ${
-              isDeepFocus
-                ? "bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white hover:border-slate-705"
-                : "bg-white border-slate-200/50 text-slate-400 hover:text-slate-600 hover:border-slate-350 shadow-sm"
-            }`}
+          {/* Quick Task Capture input field */}
+          <form
+            onSubmit={handleHeaderTaskSubmit}
+            className="relative w-full md:flex-1 md:max-w-md lg:max-w-lg xl:max-w-xl md:mx-4"
           >
-            <span>Search Workspace</span>
-            <kbd className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-[8px] font-bold">⌘K</kbd>
-          </button>
+            <div
+              className={`relative flex items-center h-10 rounded-2xl border transition-all ${
+                headerSuccess
+                  ? "bg-orange-500/10 border-orange-300 animate-pulse"
+                  : isHeaderFocused
+                  ? "bg-white dark:bg-slate-900 border-[#FF7A00] shadow-[0_0_15px_rgba(255,122,0,0.1)]"
+                  : isDeepFocus
+                  ? "bg-slate-900/50 border-slate-800 text-slate-300 hover:border-slate-700"
+                  : "bg-white border-slate-200/80 text-slate-700 hover:border-slate-300 shadow-sm"
+              }`}
+            >
+              {/* Left Plus/Sparkles Icon */}
+              <div className="pl-3.5 pr-2 flex items-center justify-center text-slate-400 shrink-0">
+                {headerSuccess ? (
+                  <CheckCircle2 className="w-4 h-4 text-[#FF7A00] animate-bounce" />
+                ) : (
+                  <Plus className={`w-4 h-4 transition-colors ${isHeaderFocused ? "text-[#FF7A00]" : "text-slate-400"}`} />
+                )}
+              </div>
 
-          {/* Header Action controls */}
-          <div className="flex items-center gap-4">
+              <input
+                type="text"
+                placeholder={
+                  headerSuccess
+                    ? "Task Captured! +20 XP ✨"
+                    : 'Quick add task (e.g. "Fix layout high tomorrow Software Engineering")...'
+                }
+                value={headerTaskText}
+                onChange={(e) => setHeaderTaskText(e.target.value)}
+                onFocus={() => setIsHeaderFocused(true)}
+                onBlur={() => setTimeout(() => setIsHeaderFocused(false), 200)}
+                disabled={headerSuccess}
+                className={`w-full bg-transparent text-xs font-medium focus:outline-none placeholder-slate-400/90 ${
+                  headerSuccess ? "text-[#FF7A00] font-bold" : "text-slate-850 dark:text-slate-100"
+                }`}
+              />
+
+              {/* Submitting indicator or clear/submit button */}
+              {headerTaskText.trim() && !headerSuccess && (
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 rounded-xl bg-[#FF7A00] text-white text-[10px] font-bold font-mono shadow hover:bg-orange-600 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Enter</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Real-time NLP Feedback dropdown panel when typing */}
+            {isHeaderFocused && headerTaskText.trim() && (
+              <div
+                className={`absolute z-50 left-0 right-0 mt-2 p-3.5 rounded-2xl border shadow-xl flex flex-col gap-2 transition-all duration-300 backdrop-blur-md ${
+                  isDeepFocus
+                    ? "bg-slate-950/95 border-slate-800 text-slate-200"
+                    : "bg-white/95 border-slate-200/60 text-slate-755"
+                }`}
+              >
+                <div className="flex items-center justify-between text-[10px] font-mono tracking-wider font-bold">
+                  <span className="text-[#FF7A00] flex items-center gap-1 uppercase">
+                    <Sparkles className="w-3.5 h-3.5 fill-orange-100 dark:fill-orange-950" />
+                    <span>Smart Live Parser</span>
+                  </span>
+                  <span className="text-slate-400 uppercase">Interactive Preview</span>
+                </div>
+
+                {/* Render inline parsing output badges */}
+                {(() => {
+                  const parsed = parseHeaderTask(headerTaskText);
+                  return (
+                    <div className="grid grid-cols-3 gap-2 mt-1">
+                      <div className="p-2 rounded-xl bg-orange-500/5 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex flex-col gap-0.5">
+                        <span className="text-[8px] text-slate-400 uppercase font-mono font-bold tracking-wider">Priority</span>
+                        <span className="text-xs font-extrabold text-[#FF7A00] flex items-center gap-1">
+                          <Flame className={`w-3.5 h-3.5 ${parsed.priority === 'High' ? "fill-orange-200 text-red-500 animate-pulse" : "text-orange-400"}`} />
+                          <span>{parsed.priority}</span>
+                        </span>
+                      </div>
+
+                      <div className="p-2 rounded-xl bg-orange-500/5 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex flex-col gap-0.5">
+                        <span className="text-[8px] text-slate-400 uppercase font-mono font-bold tracking-wider">Category</span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                          {parsed.category}
+                        </span>
+                      </div>
+
+                      <div className="p-2 rounded-xl bg-orange-500/5 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex flex-col gap-0.5">
+                        <span className="text-[8px] text-slate-400 uppercase font-mono font-bold tracking-wider">Due Date</span>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="font-mono text-[10px]">{parsed.deadline}</span>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="mt-1 text-[9px] text-slate-400 font-mono flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2">
+                  <span>💡 Tip: Type priority, category & dates inline</span>
+                  <span className="font-bold text-[#FF7A00]">Press Enter to Save</span>
+                </div>
+              </div>
+            )}
+          </form>
+
+          {/* Right Action buttons (Search & Focus switch) on desktop */}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Core Cmd+K indicator */}
+            <button
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className={`hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-[10px] font-mono transition-all cursor-pointer ${
+                isDeepFocus
+                  ? "bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white hover:border-slate-705"
+                  : "bg-white border-slate-200/50 text-slate-400 hover:text-slate-600 hover:border-slate-350 shadow-sm"
+              }`}
+            >
+              <span>Search Workspace</span>
+              <kbd className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-[8px] font-bold">⌘K</kbd>
+            </button>
+
+            {/* Desktop Deep Focus Switch */}
             <button
               id="deep-focus-switch"
               onClick={() => setIsDeepFocus(!isDeepFocus)}
-              className={`px-4 py-2 rounded-2xl text-xs font-bold font-sans transition-all flex items-center gap-2 cursor-pointer shadow-sm ${
+              className={`hidden md:flex px-4 py-2 rounded-2xl text-xs font-bold font-sans transition-all items-center gap-2 cursor-pointer shadow-sm ${
                 isDeepFocus
                   ? "bg-gradient-to-r from-orange-500 to-[#FF7A00] text-white hover:scale-[1.03] active:scale-95 border-transparent"
                   : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"

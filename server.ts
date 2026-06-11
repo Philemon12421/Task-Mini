@@ -111,8 +111,46 @@ app.post("/api/motivation", async (req, res) => {
     const data = JSON.parse(response.text || "{}");
     res.json({ ...data, source: "gemini" });
   } catch (error: any) {
-    console.error("Gemini Motivation Error:", error);
-    res.status(500).json({ error: error.message });
+    console.warn("Gemini Motivation Error (falling back to local default):", error.message || error);
+    const fallbacks: Record<string, any> = {
+      Discipline: {
+        quote: "Discipline is choosing between what you want now and what you want most.",
+        author: "Abraham Lincoln",
+        videoTopic: "How to Build Unshakeable Self-Discipline (Atomic Habits Blueprint)",
+        articleTitle: "Navigating Friction: Why Boring Work is the Secret to Expertise",
+        challenge: "Write code or study with absolutely zero social media tabs open for 90 minutes straight."
+      },
+      Cybersecurity: {
+        quote: "The quieter you become, the more you are able to hear.",
+        author: "Kali Linux team",
+        videoTopic: "Real-world Active Directory Hacker Tradecraft Red vs Blue",
+        articleTitle: "Analyzing the anatomy of a zero-day vulnerability in modern protocols",
+        challenge: "Deep dive into OSWAP Top 10 API Security risks and map out a local defensive test."
+      },
+      Entrepreneurship: {
+        quote: "The best way to predict the future is to create it.",
+        author: "Peter Drucker",
+        videoTopic: "How to Bootstrap a SaaS App from $0 to $10k MRR",
+        articleTitle: "Frictionless Onboarding: Lessons from Slack, Linear & Notion's signup flows",
+        challenge: "Map out the exact pricing tiers and value hook for your next micro-SaaS idea."
+      },
+      Coding: {
+        quote: "Simplicity is the soul of efficiency.",
+        author: "Austin Freeman",
+        videoTopic: "Architecting Ultra-Fast React Apps with Minimal Renders",
+        articleTitle: "The V8 Engine Deep Dive: Explaining JIT, Garbage Collection & Assembly translation",
+        challenge: "Refactor a heavily nested client helper using functional purity and typescript generics."
+      },
+      Success: {
+        quote: "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+        author: "Winston Churchill",
+        videoTopic: "The Art of Focus: How Elite Builders Eliminate Cognitive Overhead",
+        articleTitle: "Designing Your Personal OS: Why Systems Beat Goals Every Single Time",
+        challenge: "Conduct a 15-minute retrospective on your top priorities and discard 3 low-value tasks."
+      }
+    };
+    const choice = fallbacks[category] || fallbacks["Discipline"];
+    res.json({ ...choice, source: "fallback_error" });
   }
 });
 
@@ -185,8 +223,31 @@ Provide three highly descriptive micro-tags and a sharp, witty 1-sentence analyt
     const data = JSON.parse(response.text || "{}");
     res.json({ ...data, source: "gemini" });
   } catch (error: any) {
-    console.error("Gemini Idea Categorization Error:", error);
-    res.status(500).json({ error: error.message });
+    console.warn("Gemini Idea Categorization Error (falling back to local heuristics):", error.message || error);
+    const combined = `${title} ${description || ""}`.toLowerCase();
+    let category = "Startup Ideas";
+    let tags = ["Concept"];
+
+    if (combined.includes("video") || combined.includes("youtube") || combined.includes("tiktok") || combined.includes("channel") || combined.includes("soccer") || combined.includes("football") || combined.includes("motivation")) {
+      category = "Video Ideas";
+      tags = ["Media", "YouTube"];
+    } else if (combined.includes("app") || combined.includes("software") || combined.includes("saas") || combined.includes("code") || combined.includes("platform") || combined.includes("website") || combined.includes("frontend") || combined.includes("backend")) {
+      category = "App Ideas";
+      tags = ["Development", "SaaS"];
+    } else if (combined.includes("research") || combined.includes("cyber") || combined.includes("security") || combined.includes("study") || combined.includes("vulnerability") || combined.includes("exploit") || combined.includes("labs")) {
+      category = "Research Ideas";
+      tags = ["Cybersecurity", "Deep Dive"];
+    } else if (combined.includes("business") || combined.includes("startup") || combined.includes("agency") || combined.includes("client") || combined.includes("revenue")) {
+      category = "Startup Ideas";
+      tags = ["Business", "Revenue"];
+    }
+
+    res.json({
+      category,
+      tags: [...tags, "LocalAI"],
+      commentary: "Auto-classified using high-performance local heuristics.",
+      source: "fallback_error"
+    });
   }
 });
 
@@ -266,8 +327,38 @@ app.post("/api/mentorship/roadmap", async (req, res) => {
     const data = JSON.parse(response.text || "{}");
     res.json({ ...data, source: "gemini" });
   } catch (error: any) {
-    console.error("Gemini Academy Roadmap Error:", error);
-    res.status(500).json({ error: error.message });
+    console.warn("Gemini Academy Roadmap Error (falling back to local default):", error.message || error);
+    const roadmaps: Record<string, any> = {
+      "UI/UX Design": {
+        description: "An elite visual curriculum starting from structural typography to high-fidelity micro-interactions.",
+        lessons: [
+          { id: "ui-1", title: "Spacing Systems & The 8pt Grid", xp: 50, badge: "Pixel Cadet", duration: "1.5h" },
+          { id: "ui-2", title: "Typography Hierarchies & Brand Scaling", xp: 75, badge: "Font Alchemist", duration: "2h" },
+          { id: "ui-3", title: "Establishing Light & Dark Mode Semantic Tokens", xp: 100, badge: "Contrast Master", duration: "3h" },
+          { id: "ui-4", title: "Interactive Micro-animations in Framer Motion", xp: 150, badge: "Motion Builder", duration: "4h" }
+        ]
+      },
+      "Cybersecurity": {
+        description: "Hands-on offensive and defensive tactics targeting contemporary network protocols and web structures.",
+        lessons: [
+          { id: "sec-1", title: "Network Sniffing & Port Attack Mapping", xp: 50, badge: "Port Surveyor", duration: "2h" },
+          { id: "sec-2", title: "OWASP Top 10 Red-Teaming Exploitations", xp: 75, badge: "Vulnerability Hunter", duration: "3h" },
+          { id: "sec-3", title: "API Gateway Interception & Token Tampering", xp: 100, badge: "Cookie Captain", duration: "3h" },
+          { id: "sec-4", title: "Mitigating Buffer Overflows in Hardened Systems", xp: 150, badge: "Binary Shield", duration: "4.5h" }
+        ]
+      },
+      "Web Development": {
+        description: "Modern full-stack architecture specializing in state caching, edge handlers, and server processing.",
+        lessons: [
+          { id: "dev-1", title: "TypeScript Generics & Rigid Type Guarding", xp: 50, badge: "TS Knight", duration: "2h" },
+          { id: "dev-2", title: "Optimizing Client DOM: Virtual vs Concurrent Rendering", xp: 80, badge: "Dom Doctor", duration: "2.5h" },
+          { id: "dev-3", title: "Caching Strategies with Redis & Edge Storage", xp: 120, badge: "Memory Guard", duration: "3h" },
+          { id: "dev-4", title: "Building Scalable Custom Websocket State Servers", xp: 150, badge: "Socket Streamer", duration: "4h" }
+        ]
+      }
+    };
+    const choice = roadmaps[skillName] || roadmaps["UI/UX Design"];
+    res.json({ ...choice, source: "fallback_error" });
   }
 });
 

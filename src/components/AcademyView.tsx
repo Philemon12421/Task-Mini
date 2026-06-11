@@ -29,14 +29,15 @@ export default function AcademyView({
       });
       const data = await res.json();
       
-      const lessonsWithCompletion = data.lessons.map((les: Lesson) => ({
+      const lessonsList = (data && Array.isArray(data.lessons)) ? data.lessons : [];
+      const lessonsWithCompletion = lessonsList.map((les: Lesson) => ({
         ...les,
         completed: unlockedBadges.includes(les.badge)
       }));
 
       setRoadmap({
         skillName,
-        description: data.description,
+        description: data?.description || "Course curration and mentorship syllabus roadmap.",
         lessons: lessonsWithCompletion,
         unlockedBadgeCount: lessonsWithCompletion.filter((l: any) => l.completed).length
       });

@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from "react";
 import { Task, Goal, Skill, TeamMember, Idea, ContentChannel, MotivationState, ContentVideo, TaskStatus, Category } from "./types";
-import { Plus, Flame, Calendar, Sparkles, CheckCircle2, Check } from "lucide-react";
+import { Plus, Flame, Calendar, Sparkles, CheckCircle2, Check, Menu } from "lucide-react";
 import { 
   INITIAL_TASKS, INITIAL_GOALS, INITIAL_SKILLS, INITIAL_TEAM, INITIAL_IDEAS, 
   INITIAL_CHANNELS, INITIAL_MOTIVATION, HOURLY_TIMELINE 
@@ -54,6 +54,7 @@ export default function App() {
   // Routing / View Tab State
   // --------------------------------------------------
   const [currentTab, setCurrentTab] = useState<string>("dashboard");
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // --------------------------------------------------
   // Core Profile & XP Gamification States
@@ -698,15 +699,17 @@ export default function App() {
           userXP={userXP}
           userLevel={userLevel}
           streakDays={streakDays}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
       )}
 
       {/* Main Viewport Content Area */}
       <main
         id="main-viewport-content"
-        className={`flex-1 overflow-y-auto px-8 py-6 h-screen flex flex-col transition-all duration-1000 ${
+        className={`flex-1 overflow-y-auto px-4 md:px-8 py-6 h-screen flex flex-col transition-all duration-1000 ${
           isDeepFocus ? "bg-[#060A13]" : "bg-[#F8F9FB]"
-        }`}
+         }`}
       >
         {/* Universal Sticky Header Bar */}
         <div
@@ -718,6 +721,18 @@ export default function App() {
           {/* Row 1 / Left indicator trail & focus switch on mobile */}
           <div className="flex items-center justify-between w-full md:w-auto gap-4">
             <div className="flex items-center gap-3">
+              {/* Mobile Drawer Trigger Menu */}
+              {!isDeepFocus && (
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSidebarOpen(true)}
+                  className="md:hidden p-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer shadow-sm flex items-center justify-center shrink-0"
+                  aria-label="Toggle Navigation Panel"
+                >
+                  <Menu className="w-4 h-4 text-slate-800" />
+                </button>
+              )}
+
               {isDeepFocus && (
                 <span className="flex h-2.5 w-2.5 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>

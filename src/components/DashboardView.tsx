@@ -2,7 +2,8 @@ import { motion } from "motion/react";
 import { Task, Goal, Skill, MotivationState, Category } from "../types";
 import { 
   CheckCircle2, Circle, Clock, Flame, BookOpen, ChevronRight, 
-  Lightbulb, ShieldCheck, Video, RefreshCw, Zap, Plus, Sparkles, X, AlertCircle
+  Lightbulb, ShieldCheck, Video, RefreshCw, Zap, Plus, Sparkles, X, AlertCircle,
+  Code, Briefcase, User
 } from "lucide-react";
 import { useState, FormEvent, useEffect, useRef } from "react";
 
@@ -47,6 +48,9 @@ export default function DashboardView({
   const [nlpSuccess, setNlpSuccess] = useState(false);
   const fabInputRef = useRef<HTMLInputElement>(null);
 
+  // Category state for interactive matrix & checklist filter
+  const [selectedCategory, setSelectedCategory] = useState<Category | "All">("All");
+
   const handleQuickIdeaSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!quickIdeaTitle.trim()) return;
@@ -56,10 +60,65 @@ export default function DashboardView({
     setTimeout(() => setSuccessMsg(false), 2500);
   };
 
-  // Process numbers
+  // Process numbers & categories
   const todayTasks = tasks.filter(t => t.deadline === "2026-06-11" || t.id === "task-1" || t.id === "task-2" || t.tags?.includes("NLP"));
   const completedTodayCount = todayTasks.filter(t => t.status === "Completed").length;
   const totalTodayCount = todayTasks.length;
+
+  const filteredTodayTasks = selectedCategory === "All" 
+    ? todayTasks 
+    : todayTasks.filter(t => t.category === selectedCategory);
+
+  const getCategoryStats = (cat: Category) => {
+    const catTasks = tasks.filter(t => t.category === cat);
+    const total = catTasks.length;
+    const completed = catTasks.filter(t => t.status === "Completed").length;
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, progress };
+  };
+
+  const categoriesList: { name: Category; icon: any; color: string; bg: string; border: string; darkBg: string }[] = [
+    { 
+      name: "Software Engineering", 
+      icon: Code, 
+      color: "text-blue-500", 
+      bg: "bg-blue-50", 
+      border: "border-blue-100", 
+      darkBg: "dark:bg-blue-950/20" 
+    },
+    { 
+      name: "Cybersecurity", 
+      icon: ShieldCheck, 
+      color: "text-emerald-500", 
+      bg: "bg-emerald-50", 
+      border: "border-emerald-100", 
+      darkBg: "dark:bg-emerald-950/20" 
+    },
+    { 
+      name: "Content Creation", 
+      icon: Video, 
+      color: "text-purple-500", 
+      bg: "bg-purple-50", 
+      border: "border-purple-100", 
+      darkBg: "dark:bg-purple-950/20" 
+    },
+    { 
+      name: "Business", 
+      icon: Briefcase, 
+      color: "text-teal-500", 
+      bg: "bg-teal-50", 
+      border: "border-teal-100", 
+      darkBg: "dark:bg-teal-950/20" 
+    },
+    { 
+      name: "Personal", 
+      icon: User, 
+      color: "text-amber-500", 
+      bg: "bg-amber-50", 
+      border: "border-amber-100", 
+      darkBg: "dark:bg-amber-950/20" 
+    }
+  ];
 
   // Real-time NLP parsing engine for FAB
   const parseNLPTask = (input: string) => {
@@ -204,14 +263,14 @@ export default function DashboardView({
       {/* Grid: High Stakes Stats Cards */}
       <div 
         id="dashboard-bento-metrics" 
-        className={`grid grid-cols-2 lg:grid-cols-4 gap-6 transition-all duration-1000 ${
+        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 transition-all duration-1000 ${
           isDeepFocus 
             ? "opacity-15 pointer-events-none select-none filter saturate-50 blur-[0.2px] hover:opacity-100 hover:pointer-events-auto hover:blur-none hover:saturate-100" 
             : "opacity-100"
         }`}
       >
         {/* Metric 1: Streak */}
-        <div className="bg-white/95 dark:bg-slate-900/90 p-7 rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
+        <div className="bg-white/95 dark:bg-slate-900/90 p-5 sm:p-7 rounded-3xl sm:rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
           <div className="w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-[#FF7A00] shrink-0 font-bold">
             <Flame className="w-5 h-5 text-[#FF7A00] fill-orange-100" />
           </div>
@@ -222,7 +281,7 @@ export default function DashboardView({
         </div>
 
         {/* Metric 2: Time Used Today */}
-        <div className="bg-white/95 dark:bg-slate-900/90 p-7 rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
+        <div className="bg-white/95 dark:bg-slate-900/90 p-5 sm:p-7 rounded-3xl sm:rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
           <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-700 shrink-0">
             <Clock className="w-5 h-5 text-[#FF7A00]" />
           </div>
@@ -233,7 +292,7 @@ export default function DashboardView({
         </div>
 
         {/* Metric 3: Task Progress */}
-        <div className="bg-white/95 dark:bg-slate-900/90 p-7 rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
+        <div className="bg-white/95 dark:bg-slate-900/90 p-5 sm:p-7 rounded-3xl sm:rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
           <div className="w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-[#FF7A00] shrink-0 font-bold text-sm">
             <CheckCircle2 className="w-5 h-5 text-[#FF7A00]" />
           </div>
@@ -246,7 +305,7 @@ export default function DashboardView({
         </div>
 
         {/* Metric 4: Multiplier/XP Booster */}
-        <div className="bg-white/95 dark:bg-slate-900/90 p-7 rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
+        <div className="bg-white/95 dark:bg-slate-900/90 p-5 sm:p-7 rounded-3xl sm:rounded-[32px] shadow-[0_12px_44px_rgba(148,163,184,0.06)] border-none flex items-center gap-4 relative overflow-hidden group">
           <div className="w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-[#FF7A00] shrink-0">
             <Zap className="w-5 h-5 text-[#FF7A00] fill-orange-200" />
           </div>
@@ -257,26 +316,120 @@ export default function DashboardView({
         </div>
       </div>
 
+      {/* Interactive Category Taxonomy Matrix */}
+      <div 
+        id="dashboard-category-matrix"
+        className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 transition-all duration-1000 ${
+          isDeepFocus ? "opacity-15 pointer-events-none select-none filter blur-[0.2px]" : "opacity-100"
+        }`}
+      >
+        {categoriesList.map((catConfig) => {
+          const stats = getCategoryStats(catConfig.name);
+          const isSelected = selectedCategory === catConfig.name;
+          const CatIcon = catConfig.icon;
+          
+          return (
+            <button
+              key={catConfig.name}
+              onClick={() => setSelectedCategory(isSelected ? "All" : catConfig.name)}
+              className={`p-4 sm:p-5 rounded-3xl border text-left transition-all duration-300 relative overflow-hidden flex flex-col justify-between group cursor-pointer ${
+                isSelected
+                  ? "bg-white dark:bg-slate-900 border-[#FF7A00] shadow-[0_8px_30px_rgba(255,122,0,0.12)] scale-[1.02]"
+                  : "bg-white/95 dark:bg-slate-900/90 border-slate-100 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 hover:scale-[1.01] shadow-sm"
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-3">
+                <div className={`p-2 rounded-lg ${catConfig.bg} ${catConfig.darkBg} ${catConfig.color}`}>
+                  <CatIcon className="w-4 h-4" />
+                </div>
+                <span className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500">
+                  {stats.completed}/{stats.total} Tasks
+                </span>
+              </div>
+              
+              <div>
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                  {catConfig.name}
+                </h4>
+                
+                {/* Horizontal mini progress bar */}
+                <div className="mt-2.5">
+                  <div className="flex justify-between items-center text-[9px] font-semibold text-slate-400 dark:text-slate-500 mb-1">
+                    <span>Rank Progress</span>
+                    <span className="font-mono text-[9px] sm:text-[10px]">{stats.progress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800/50 h-1 rounded-full overflow-hidden">
+                    <div 
+                      style={{ width: `${stats.progress}%` }}
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isSelected ? "bg-[#FF7A00]" : "bg-slate-400 dark:bg-slate-600"
+                      }`}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Highlight bar inside card */}
+              {isSelected && (
+                <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#FF7A00]" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Bento Layout Row 1: Focus Tasks & Stoic Motivation Banner */}
-      <div id="dashboard-main-row" className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div id="dashboard-main-row" className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         
         {/* Left Side: Today's Focus Checklist (7 cols) - REMAINS ACTIVE & CRISP EVEN IN DEEP FOCUS! */}
         <div 
           id="dashboard-col-focus" 
-          className="lg:col-span-7 bg-white/95 dark:bg-slate-900/95 p-9 rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col transition-all duration-700"
+          className="lg:col-span-7 bg-white/95 dark:bg-slate-900/95 p-5 sm:p-8 rounded-3xl sm:rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col transition-all duration-700"
         >
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div>
               <h2 className="text-lg font-bold font-sans text-slate-800 dark:text-white tracking-tight">Today's Focus</h2>
-              <p className="text-xs text-slate-450 text-slate-400 font-mono">Completed items award direct XP parameters.</p>
+              <p className="text-xs text-slate-400 font-mono">Completed items award direct XP parameters.</p>
             </div>
             <button 
               onClick={() => onNavigate("tasks")}
-              className="text-[#FF7A00] font-semibold text-xs flex items-center gap-1 hover:underline cursor-pointer"
+              className="text-[#FF7A00] font-semibold text-xs flex items-center gap-1 hover:underline cursor-pointer self-start sm:self-auto"
             >
               <span>Manage all</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
+          </div>
+
+          {/* Categorised Filter Pills Tray */}
+          <div className="flex flex-wrap gap-1.5 mb-5 border-b border-slate-50 dark:border-slate-800/45 pb-4">
+            <button
+              onClick={() => setSelectedCategory("All")}
+              className={`px-3 py-1.5 rounded-xl text-[9px] sm:text-[10px] font-bold font-mono uppercase tracking-wider transition-all cursor-pointer ${
+                selectedCategory === "All"
+                  ? "bg-[#FF7A00] text-white shadow-sm shadow-orange-500/10"
+                  : "bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              All Focus ({todayTasks.length})
+            </button>
+            {categoriesList.map((catConfig) => {
+              const count = todayTasks.filter(t => t.category === catConfig.name).length;
+              if (count === 0 && selectedCategory !== catConfig.name) return null;
+              return (
+                <button
+                  key={catConfig.name}
+                  onClick={() => setSelectedCategory(catConfig.name)}
+                  className={`px-3 py-1.5 rounded-xl text-[9px] sm:text-[10px] font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                    selectedCategory === catConfig.name
+                      ? "bg-[#FF7A00] text-white shadow-sm shadow-orange-500/10"
+                      : "bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 text-slate-500 dark:text-slate-450"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${selectedCategory === catConfig.name ? "bg-white" : catConfig.bg.replace("bg-", "bg-").concat(" ").concat(catConfig.color)}`} />
+                  <span>{catConfig.name} ({count})</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] pr-1">
@@ -284,8 +437,18 @@ export default function DashboardView({
               <div className="text-center py-10">
                 <p className="text-slate-400 text-sm">No tasks mapped out for today.</p>
               </div>
+            ) : filteredTodayTasks.length === 0 ? (
+              <div className="text-center py-10 flex flex-col items-center justify-center">
+                <p className="text-slate-400 text-xs font-mono">No today's focus items for this category.</p>
+                <button
+                  onClick={() => setSelectedCategory("All")}
+                  className="mt-3 text-xs font-bold text-[#FF7A00] hover:underline cursor-pointer"
+                >
+                  Clear filter & show all
+                </button>
+              </div>
             ) : (
-              todayTasks.map((task) => (
+              filteredTodayTasks.map((task) => (
                 <div 
                   id={`dashboard-task-card-${task.id}`}
                   key={task.id}
@@ -303,7 +466,7 @@ export default function DashboardView({
                       {task.status === "Completed" ? (
                         <div className="w-5 h-5 rounded-md flex items-center justify-center bg-[#FF7A00]">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
                       ) : (
@@ -317,7 +480,7 @@ export default function DashboardView({
                     </span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-200/40 dark:bg-slate-800 text-slate-400 dark:text-slate-400 uppercase tracking-wider rounded">
+                    <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-200/40 dark:bg-slate-800 text-slate-400 dark:text-slate-450 uppercase tracking-wider rounded">
                       {task.category || "TASKS"}
                     </span>
                     <span className="text-[10px] font-bold font-mono text-[#FF7A00]">+{task.xpReward} XP</span>
@@ -331,7 +494,7 @@ export default function DashboardView({
         {/* Right Side: Stoic / Personal Motivation Widget (5 cols) - DIMMED IN DEEP FOCUS */}
         <div 
           id="dashboard-col-stoic" 
-          className={`lg:col-span-5 bg-slate-900 p-9 rounded-[36px] text-white flex flex-col justify-between relative overflow-hidden transition-all duration-1000 ${
+          className={`lg:col-span-5 bg-slate-900 p-5 sm:p-8 rounded-3xl sm:rounded-[36px] text-white flex flex-col justify-between relative overflow-hidden transition-all duration-1000 ${
             isDeepFocus 
               ? "opacity-15 pointer-events-none select-none filter saturate-50 blur-[0.2px] hover:opacity-100 hover:pointer-events-auto hover:blur-none hover:saturate-100" 
               : "opacity-100"
@@ -384,7 +547,7 @@ export default function DashboardView({
       {/* Layout Row 2: Planner Snippet & Quick Idea Capture Bento - DIMMED IN DEEP FOCUS */}
       <div 
         id="dashboard-row-bento-2" 
-        className={`grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all duration-1000 ${
+        className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 transition-all duration-1000 ${
           isDeepFocus 
             ? "opacity-15 pointer-events-none select-none filter saturate-50 blur-[0.2px] hover:opacity-100 hover:pointer-events-auto hover:blur-none hover:saturate-100" 
             : "opacity-100"
@@ -392,7 +555,7 @@ export default function DashboardView({
       >
         
         {/* Quick Idea Capture (1 Col) */}
-        <div id="dashboard-quick-idea" className="bg-white/95 dark:bg-slate-900/95 p-8 rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col justify-between">
+        <div id="dashboard-quick-idea" className="bg-white/95 dark:bg-slate-900/95 p-5 sm:p-7 rounded-3xl sm:rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2.5 mb-2">
               <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-[#FF7A00]">
@@ -430,7 +593,7 @@ export default function DashboardView({
         </div>
 
         {/* Video Creator Hub Queue Snippet (1 Col) */}
-        <div id="dashboard-creator-snippet" className="bg-white/95 dark:bg-slate-900/95 p-8 rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col justify-between">
+        <div id="dashboard-creator-snippet" className="bg-white/95 dark:bg-slate-900/95 p-5 sm:p-7 rounded-3xl sm:rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -472,7 +635,7 @@ export default function DashboardView({
         </div>
 
         {/* Micro Skills Bento Preview (1 Col) */}
-        <div id="dashboard-skills-snippet" className="bg-white/95 dark:bg-slate-900/95 p-8 rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col justify-between">
+        <div id="dashboard-skills-snippet" className="bg-white/95 dark:bg-slate-900/95 p-5 sm:p-7 rounded-3xl sm:rounded-[36px] shadow-[0_12px_44px_rgba(148,163,184,0.08)] border-none flex flex-col justify-between md:col-span-2 lg:col-span-1">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -519,12 +682,12 @@ export default function DashboardView({
       {/* ========================================================== */}
       <div 
         id="nlp-fab-system" 
-        className="fixed bottom-8 right-8 z-[90] flex flex-col items-end"
+        className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-[90] flex flex-col items-end max-w-[calc(100vw-2rem)]"
       >
         {/* Expanded NLP Panel */}
         {fabOpen && (
           <div 
-            className="mb-4 w-[360px] md:w-[410px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.18)] p-6 border-none text-left animate-in fade-in slide-in-from-bottom-6 duration-300"
+            className="mb-4 w-[290px] xs:w-[340px] sm:w-[360px] md:w-[410px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.18)] p-5 sm:p-6 border-none text-left animate-in fade-in slide-in-from-bottom-6 duration-300 max-w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800/80 mb-3.5">

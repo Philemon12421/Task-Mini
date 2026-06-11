@@ -33,7 +33,62 @@ const CATEGORIES: { name: Category; icon: any; accent: string; pill: string }[] 
 
 const PRIORITY_XP: Record<string, number> = { High: 120, Medium: 70, Low: 40 };
 
-function parseNLPTask(input: string): { title: string; priority: "High" | "Medium" | "Low"; category: Category; deadline: string } {
+interface TaskPattern {
+  keywords: string[];
+  category: Category;
+  tags: string[];
+}
+
+const TASK_PATTERNS: TaskPattern[] = [
+  {
+    keywords: ["meeting", "standup", "sync", "huddle", "catchup", "scrum", "weekly review", "board review", "call"],
+    category: "Business",
+    tags: ["Meeting", "Collab"],
+  },
+  {
+    keywords: ["code review", "review code", "pr review", "pull request", "github review", "review pr", "merge pr"],
+    category: "Software Engineering",
+    tags: ["CodeReview", "QA"],
+  },
+  {
+    keywords: ["bug fix", "bugfix", "hotfix", "debug", "fix bug", "resolve error", "issue fix", "crash fix"],
+    category: "Software Engineering",
+    tags: ["Bug", "Fix"],
+  },
+  {
+    keywords: ["vulnerability", "sec scan", "security audit", "pentest", "malware", "hack", "firewall", "leak test", "penetration testing"],
+    category: "Cybersecurity",
+    tags: ["Security", "Audit"],
+  },
+  {
+    keywords: ["video edit", "editing", "thumbnail", "youtube short", "rendering", "scripting", "b-roll", "edit audio"],
+    category: "Content Creation",
+    tags: ["Creative", "Editing"],
+  },
+  {
+    keywords: ["workout", "gym", "exercise", "run", "cardio", "training", "stretch", "fitness", "lift weight"],
+    category: "Personal",
+    tags: ["Fitness", "Health"],
+  },
+  {
+    keywords: ["client proposal", "pitch", "deck", "invoice", "sales", "lead generation", "revenue model", "partnership"],
+    category: "Business",
+    tags: ["Client", "Revenue"],
+  },
+  {
+    keywords: ["study", "learn", "course", "research", "homework", "lecture", "tutorial", "certification"],
+    category: "Personal",
+    tags: ["Learning", "Growth"],
+  }
+];
+
+function parseNLPTask(input: string): { 
+  title: string; 
+  priority: "High" | "Medium" | "Low"; 
+  category: Category; 
+  deadline: string;
+  tags: string[];
+} {
   const norm = input.toLowerCase();
 
   let priority: "High" | "Medium" | "Low" = "Medium";
@@ -45,6 +100,15 @@ function parseNLPTask(input: string): { title: string; priority: "High" | "Mediu
   else if (/\b(cyber|security|hack|pentest|exploit|audit|firewall)\b/.test(norm)) category = "Cybersecurity";
   else if (/\b(video|edit|youtube|shorts|tiktok|content|script)\b/.test(norm)) category = "Content Creation";
   else if (/\b(business|client|contract|startup|sales|revenue|invoice)\b/.test(norm)) category = "Business";
+
+  // Check for common task patterns to override category and auto-fill tags
+  let matchedTags: string[] = [];
+  for (const pattern of TASK_PATTERNS) {
+    if (pattern.keywords.some(keyword => norm.includes(keyword))) {
+      category = pattern.category;
+      matchedTags = Array.from(new Set([...matchedTags, ...pattern.tags]));
+    }
+  }
 
   let offsetDays = 1;
   if (/\btoday\b/.test(norm)) offsetDays = 0;
@@ -78,7 +142,7 @@ function parseNLPTask(input: string): { title: string; priority: "High" | "Mediu
   let title = cleaners.reduce((t, r) => t.replace(r, ""), input).replace(/\s+/g, " ").replace(/^[\s,\-:]+|[\s,\-:]+$/g, "").trim();
   if (!title) title = input.trim() || "New task";
 
-  return { title, priority, category, deadline };
+  return { title, priority, category, deadline, tags: matchedTags };
 }
 
 export default function DashboardView({
@@ -161,7 +225,16 @@ export default function DashboardView({
     e.preventDefault();
     if (!nlpInput.trim()) return;
     const p = parseNLPTask(nlpInput);
-    addTask({ title: p.title, priority: p.priority, category: p.category, deadline: p.deadline, status: "Todo", tags: ["NLP"], xpReward: PRIORITY_XP[p.priority], notes: `From NLP: "${nlpInput}"` });
+    addTask({ 
+      title: p.title, 
+      priority: p.priority, 
+      category: p.category, 
+      deadline: p.deadline, 
+      status: "Todo", 
+      tags: ["NLP", ...p.tags], 
+      xpReward: PRIORITY_XP[p.priority], 
+      notes: `From NLP: "${nlpInput}"` 
+    });
     setNlpInput(""); setNlpSuccess(true);
     setTimeout(() => { setNlpSuccess(false); setFabOpen(false); }, 1200);
   };
@@ -322,9 +395,20 @@ export default function DashboardView({
                       <div className="w-5 h-5 rounded-md border-2 border-slate-200 dark:border-slate-700" />
                     )}
                   </button>
-                  <span className={`flex-1 text-[13px] font-semibold truncate ${done ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-200"}`}>
-                    {task.title}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className={`text-[13px] font-semibold block truncate ${done ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-200"}`}>
+                      {task.title}
+                    </span>
+                    {task.tags && task.tags.filter(t => t !== "NLP" && t !== "FromNote").length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {task.tags.filter(t => t !== "NLP" && t !== "FromNote").map(tg => (
+                          <span key={tg} className="text-[9.5px] font-bold text-[#FF7A00] dark:text-orange-400 font-mono tracking-tight bg-orange-50/50 dark:bg-orange-950/20 px-1.5 py-0.5 rounded-md">
+                            #{tg.toLowerCase()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {catCfg && (
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${catCfg.pill}`}>
@@ -519,6 +603,18 @@ export default function DashboardView({
                       <p className="text-[12px] font-semibold text-slate-800 dark:text-slate-200 truncate">{value}</p>
                     </div>
                   ))}
+                  {parsedTask.tags.length > 0 && (
+                    <div className="col-span-2 mt-1.5 pt-2 border-t border-slate-100 dark:border-slate-800/60 text-left">
+                      <p className="text-[10px] text-slate-400 mb-1 font-mono">Auto-filled Tags</p>
+                      <div className="flex flex-wrap gap-1">
+                        {parsedTask.tags.map(t => (
+                          <span key={t} className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-[#FF7A00]/10 text-[#FF7A00] font-mono">
+                            #{t.toLowerCase()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Lesson, AcademyRoadmap } from "../types";
-import { Award, Share2, Loader2, Star, CheckSquare, Bookmark, Check } from "lucide-react";
+import { Award, Share2, Loader2, Star, Check } from "lucide-react";
 import { motion } from "motion/react";
 
 interface AcademyViewProps {
@@ -28,7 +28,7 @@ export default function AcademyView({
         body: JSON.stringify({ skillName }),
       });
       const data = await res.json();
-      
+
       const lessonsList = (data && Array.isArray(data.lessons)) ? data.lessons : [];
       const lessonsWithCompletion = lessonsList.map((les: Lesson) => ({
         ...les,
@@ -43,6 +43,7 @@ export default function AcademyView({
       });
     } catch (e) {
       console.error(e);
+      setRoadmap(null);
     } finally {
       setLoading(false);
     }
@@ -54,7 +55,7 @@ export default function AcademyView({
 
   const handleLessonComplete = (lessonId: string) => {
     if (!roadmap) return;
-    
+
     const updatedLessons = roadmap.lessons.map((l) => {
       if (l.id === lessonId && !l.completed) {
         onUnlockBadge(l.badge);
@@ -81,14 +82,14 @@ export default function AcademyView({
 
   return (
     <div id="academy-viewport" className="space-y-6 max-w-6xl mx-auto">
-      
+
       {/* Page Header */}
       <div id="academy-header" className="border-b border-slate-100 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-sans text-slate-800 tracking-tight font-sans">Mentor Academy</h1>
           <p className="text-sm text-slate-400 font-sans font-medium">Map out curricula for students, share progress portal links, and track badges unlocked.</p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <select
             value={selectedRouteSkill}
@@ -110,7 +111,7 @@ export default function AcademyView({
         </div>
       ) : roadmap ? (
         <div id="academy-curriculum" className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
+
           {/* Left: Course Description and Lesson checklist (8 columns) */}
           <div className="lg:col-span-8 bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-4 border-b border-slate-50">
@@ -133,12 +134,33 @@ export default function AcademyView({
             </div>
 
             {/* Course Outline Title */}
-            <h3 className="text-xs font-bold text-slate-400 font-mono uppercase tracking-wider">Lesson Sequence & Badges</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-400 font-mono uppercase tracking-wider">Lesson Sequence & Badges</h3>
+              {roadmap.lessons.length > 0 && (
+                <span className="text-[10px] font-mono font-bold text-[#FF7A00] bg-orange-50 border border-orange-100/50 px-2.5 py-1 rounded-lg">
+                  {roadmap.unlockedBadgeCount}/{roadmap.lessons.length} COMPLETE
+                </span>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            {roadmap.lessons.length > 0 && (
+              <div className="w-full bg-slate-50 border border-slate-100/50 h-2 rounded-full overflow-hidden -mt-1">
+                <div
+                  style={{ width: `${Math.round((roadmap.unlockedBadgeCount / roadmap.lessons.length) * 100)}%` }}
+                  className="bg-[#FF7A00] h-full rounded-full transition-all duration-300"
+                />
+              </div>
+            )}
 
             {/* List */}
             <div className="space-y-3">
-              {roadmap.lessons.map((les, index) => (
-                <div 
+              {roadmap.lessons.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-100 rounded-2xl">
+                  No lessons available for this route yet.
+                </div>
+              ) : roadmap.lessons.map((les, index) => (
+                <div
                   id={`roadmap-lesson-row-${les.id}`}
                   key={les.id}
                   className={`p-4 rounded-2xl border flex items-start justify-between gap-3 transition-all ${
@@ -198,7 +220,7 @@ export default function AcademyView({
                   </div>
                 ) : (
                   unlockedBadges.map((badge, idx) => (
-                    <motion.div 
+                    <motion.div
                       layout
                       initial={{ scale: 0.8 }}
                       animate={{ scale: 1 }}
@@ -206,7 +228,7 @@ export default function AcademyView({
                       key={badge}
                       className="p-3 bg-orange-50/50 border border-orange-100/30 rounded-2xl text-center relative group flex flex-col justify-center items-center"
                     >
-                      <span className="text-xl mb-1 filter drop-shadow">⭐</span>
+                      <Star className="w-5 h-5 text-[#FF7A00] fill-[#FF7A00] mb-1 drop-shadow" />
                       <p className="font-sans font-bold text-slate-700 text-[10px] leading-tight truncate w-full">{badge}</p>
                       <p className="text-[8px] font-mono text-[#FF7A00] font-bold uppercase tracking-wider mt-0.5">Unlocked</p>
                     </motion.div>
@@ -227,7 +249,12 @@ export default function AcademyView({
           </div>
 
         </div>
-      ) : null}
+      ) : (
+        <div className="bg-white border border-slate-100 rounded-[32px] py-16 text-center shadow-sm">
+          <p className="text-sm font-bold text-slate-700 font-sans">Couldn't load this roadmap.</p>
+          <p className="text-xs text-slate-400 mt-1">Check your connection and try selecting the route again.</p>
+        </div>
+      )}
 
     </div>
   );

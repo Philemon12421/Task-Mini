@@ -43,8 +43,8 @@ export default function IdeaVaultView({
     }
   };
 
-  const filteredIdeas = activeFolder === "All" 
-    ? ideas 
+  const filteredIdeas = activeFolder === "All"
+    ? ideas
     : ideas.filter(i => i.category === activeFolder);
 
   const folders = [
@@ -75,7 +75,7 @@ export default function IdeaVaultView({
 
       {/* Draft capture form */}
       {showAdd && (
-        <form 
+        <form
           onSubmit={handleSubmit}
           className="bg-white border border-slate-100 p-6 rounded-[32px] shadow-sm space-y-4 max-w-xl animate-fade-in"
         >
@@ -181,13 +181,13 @@ export default function IdeaVaultView({
                         <span className={`text-[9px] font-mono uppercase font-bold tracking-widest px-2.5 py-1 rounded-lg border ${
                           idea.category === "Startup Ideas" ? "bg-purple-50 text-purple-600 border-purple-100" :
                           idea.category === "App Ideas" ? "bg-blue-50 text-blue-600 border-blue-100" :
-                          idea.category === "Video Ideas" ? "bg-amber-50 text-amber-605 text-amber-600 border-amber-100" :
+                          idea.category === "Video Ideas" ? "bg-amber-50 text-amber-600 border-amber-100" :
                           idea.category === "Research Ideas" ? "bg-red-50 text-red-600 border-red-100" :
                           "bg-orange-50/50 text-[#FF7A00] border-orange-100/50"
                         }`}>
                           {idea.category}
                         </span>
-                        
+
                         <div className="flex items-center gap-1 mt-0.5 text-[10px] font-mono text-slate-400">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>{idea.createdAt}</span>
@@ -199,9 +199,9 @@ export default function IdeaVaultView({
                           <button
                             disabled={isLoading}
                             onClick={() => runAICategorize(idea.id)}
-                            className="bg-orange-50 text-[#FF7A00] border border-orange-100/40 px-3.5 py-2 rounded-2xl text-[11px] font-bold flex items-center gap-1 hover:bg-[#FF7A00] hover:text-white hover:border-transparent transition-colors cursor-pointer"
+                            className="bg-orange-50 text-[#FF7A00] border border-orange-100/40 px-3.5 py-2 rounded-2xl text-[11px] font-bold flex items-center gap-1 hover:bg-[#FF7A00] hover:text-white hover:border-transparent transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            <Zap className="w-3 h-3 text-current" />
+                            <Zap className={`w-3 h-3 text-current ${isLoading ? "animate-pulse" : ""}`} />
                             <span>{isLoading ? "Analyzing..." : "AI Viability Scan"}</span>
                           </button>
                         )}
@@ -217,7 +217,7 @@ export default function IdeaVaultView({
 
                     {/* Content Title */}
                     <h3 className="font-sans font-bold text-slate-800 text-base mb-1.5 leading-snug tracking-tight">{idea.title}</h3>
-                    
+
                     {/* Content Description */}
                     {idea.description && (
                       <p className="text-xs text-slate-500 leading-relaxed mb-4 pr-4">
@@ -237,9 +237,9 @@ export default function IdeaVaultView({
                     )}
                   </div>
 
-                  {/* Gemini Commentary Box */}
+                  {/* AI Commentary Box */}
                   {idea.commentary && (
-                    <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-100/50 text-xs text-slate-705 text-slate-700 flex items-start gap-2.5 relative overflow-hidden">
+                    <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-100/50 text-xs text-slate-700 flex items-start gap-2.5 relative overflow-hidden">
                       <div className="absolute top-0 right-0 px-2 py-0.5 font-mono text-[8px] font-bold text-[#FF7A00] uppercase bg-orange-50 border-l border-b border-orange-100/30 rounded-bl">
                         Viability Score
                       </div>

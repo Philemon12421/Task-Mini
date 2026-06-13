@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, RotateCcw, Volume2, ShieldAlert, Award, Calendar, CheckSquare, Activity, VolumeX, Lightbulb } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, Calendar, CheckSquare, Activity, VolumeX, Lightbulb } from "lucide-react";
 import { motion } from "motion/react";
 
 interface PlannerViewProps {
@@ -17,7 +17,6 @@ export default function PlannerView({
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
-  const [multiplier, setMultiplier] = useState(1);
   const [sessionCount, setSessionCount] = useState(2);
   const [focusedMinutesTotal, setFocusedMinutesTotal] = useState(50);
 
@@ -29,7 +28,7 @@ export default function PlannerView({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Visualizer bar array
-  const visualizerBars = Array.from({ length: 18 }, () => Math.floor(Math.random() * 80) + 20);
+  const visualizerBars = useRef(Array.from({ length: 18 }, () => Math.floor(Math.random() * 80) + 20)).current;
 
   // Manage count
   useEffect(() => {
@@ -109,7 +108,7 @@ export default function PlannerView({
 
   return (
     <div id="planner-tracker-board" className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-6xl mx-auto">
-      
+
       {/* LEFT AREA: Pomodoro Focus Chamber (5 columns) */}
       <section id="pomodoro-chamber" className="lg:col-span-5 bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm flex flex-col justify-between relative overflow-hidden">
 
@@ -181,8 +180,8 @@ export default function PlannerView({
             <button
               onClick={handleStartPause}
               className={`p-4 rounded-full text-white shadow-md transition-transform active:scale-95 cursor-pointer ${
-                isActive 
-                  ? "bg-slate-900" 
+                isActive
+                  ? "bg-slate-900"
                   : "bg-[#FF7A00]"
               }`}
             >
@@ -254,11 +253,11 @@ export default function PlannerView({
         <div className="mt-6 grid grid-cols-2 gap-3 bg-slate-50/50 rounded-2xl p-4 text-center border border-slate-100 text-xs">
           <div>
             <p className="text-slate-400 font-mono text-[9px] uppercase font-bold text-center">Focus Sessions</p>
-            <p className="font-bold text-slate-850 text-sm mt-0.5">{sessionCount} blocks</p>
+            <p className="font-bold text-slate-800 text-sm mt-0.5">{sessionCount} blocks</p>
           </div>
           <div>
             <p className="text-slate-400 font-mono text-[9px] uppercase font-bold text-center">Total Minutes</p>
-            <p className="font-bold text-slate-850 text-sm mt-0.5">{focusedMinutesTotal} mins</p>
+            <p className="font-bold text-slate-800 text-sm mt-0.5">{focusedMinutesTotal} mins</p>
           </div>
         </div>
 
@@ -274,55 +273,62 @@ export default function PlannerView({
             </div>
             <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>June 10, 2026</span>
+              <span>June 11, 2026</span>
             </div>
           </div>
 
-          <div className="space-y-3.5 mt-5">
-            {timelineData.map((slot, index) => (
-              <div 
-                id={`timeline-card-row-${index}`}
-                key={index} 
-                className={`flex items-start gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
-                  slot.completed 
-                    ? "bg-slate-50 border-slate-100 opacity-60 text-slate-400" 
-                    : "bg-white border-slate-100 shadow-sm hover:border-slate-200"
-                }`}
-              >
-                {/* Time Indicator column */}
-                <div className="w-20 shrink-0 select-none pt-0.5 font-mono text-[11px] font-bold text-[#FF7A00] tracking-wider uppercase">
-                  {slot.time}
-                </div>
+          {timelineData.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 text-sm border border-dashed border-slate-100 rounded-2xl mt-5">
+              No timeline blocks scheduled yet.
+            </div>
+          ) : (
+            <div className="space-y-3.5 mt-5">
+              {timelineData.map((slot, index) => (
+                <div
+                  id={`timeline-card-row-${index}`}
+                  key={index}
+                  className={`flex items-start gap-4 p-4 rounded-xl border transition-all cursor-pointer ${
+                    slot.completed
+                      ? "bg-slate-50 border-slate-100 opacity-60 text-slate-400"
+                      : "bg-white border-slate-100 shadow-sm hover:border-slate-200"
+                  }`}
+                  onClick={() => toggleTimelineItem(index)}
+                >
+                  {/* Time Indicator column */}
+                  <div className="w-20 shrink-0 select-none pt-0.5 font-mono text-[11px] font-bold text-[#FF7A00] tracking-wider uppercase">
+                    {slot.time}
+                  </div>
 
-                {/* Vertical Divider line */}
-                <div className="w-[1.5px] bg-slate-100 self-stretch min-h-6 shrink-0 relative">
-                  <div className={`absolute top-1.5 -left-1 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                    slot.completed ? "bg-green-500" : "bg-[#FF7A00]"
-                  }`} />
-                </div>
+                  {/* Vertical Divider line */}
+                  <div className="w-[1.5px] bg-slate-100 self-stretch min-h-6 shrink-0 relative">
+                    <div className={`absolute top-1.5 -left-1 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                      slot.completed ? "bg-green-500" : "bg-[#FF7A00]"
+                    }`} />
+                  </div>
 
-                {/* Activity and Check Column */}
-                <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-                  <p className={`text-xs font-semibold leading-relaxed truncate ${
-                    slot.completed ? "line-through text-slate-400 font-medium" : "text-slate-700 font-bold"
-                  }`}>
-                    {slot.activity}
-                  </p>
+                  {/* Activity and Check Column */}
+                  <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                    <p className={`text-xs font-semibold leading-relaxed truncate ${
+                      slot.completed ? "line-through text-slate-400 font-medium" : "text-slate-700 font-bold"
+                    }`}>
+                      {slot.activity}
+                    </p>
 
-                  <button 
-                    onClick={() => toggleTimelineItem(index)}
-                    className="shrink-0 text-slate-300 hover:text-green-500 transition-colors cursor-pointer"
-                  >
-                    {slot.completed ? (
-                      <CheckSquare className="w-4 h-4 text-green-500 fill-green-50" />
-                    ) : (
-                      <div className="w-4 h-4 border-2 border-slate-200 rounded hover:border-[#FF7A00]" />
-                    )}
-                  </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleTimelineItem(index); }}
+                      className="shrink-0 text-slate-300 hover:text-green-500 transition-colors cursor-pointer"
+                    >
+                      {slot.completed ? (
+                        <CheckSquare className="w-4 h-4 text-green-500 fill-green-50" />
+                      ) : (
+                        <div className="w-4 h-4 border-2 border-slate-200 rounded hover:border-[#FF7A00]" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mt-8 p-4 rounded-2xl bg-orange-50/50 border border-orange-100/50 text-xs flex items-center gap-3">

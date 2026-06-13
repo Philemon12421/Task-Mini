@@ -82,10 +82,10 @@ const TASK_PATTERNS: TaskPattern[] = [
   }
 ];
 
-function parseNLPTask(input: string): { 
-  title: string; 
-  priority: "High" | "Medium" | "Low"; 
-  category: Category; 
+function parseNLPTask(input: string): {
+  title: string;
+  priority: "High" | "Medium" | "Low";
+  category: Category;
   deadline: string;
   tags: string[];
 } {
@@ -225,15 +225,15 @@ export default function DashboardView({
     e.preventDefault();
     if (!nlpInput.trim()) return;
     const p = parseNLPTask(nlpInput);
-    addTask({ 
-      title: p.title, 
-      priority: p.priority, 
-      category: p.category, 
-      deadline: p.deadline, 
-      status: "Todo", 
-      tags: ["NLP", ...p.tags], 
-      xpReward: PRIORITY_XP[p.priority], 
-      notes: `From NLP: "${nlpInput}"` 
+    addTask({
+      title: p.title,
+      priority: p.priority,
+      category: p.category,
+      deadline: p.deadline,
+      status: "Todo",
+      tags: ["NLP", ...p.tags],
+      xpReward: PRIORITY_XP[p.priority],
+      notes: `From NLP: "${nlpInput}"`
     });
     setNlpInput(""); setNlpSuccess(true);
     setTimeout(() => { setNlpSuccess(false); setFabOpen(false); }, 1200);
@@ -326,7 +326,7 @@ export default function DashboardView({
           <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-50 dark:border-slate-800/60">
             <div>
               <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">Today's focus</h2>
-              <p className="text-[11px] text-slate-405 text-slate-400 mt-0.5">Completed tasks award XP parameters</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Completed tasks award XP</p>
             </div>
             <button
               onClick={() => onNavigate("tasks")}
@@ -343,7 +343,7 @@ export default function DashboardView({
               className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
                 selectedCategory === "All"
                   ? "bg-[#FF7A00] text-white"
-                  : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-705"
+                  : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
               }`}
             >
               All ({todayTasks.length})
@@ -358,7 +358,7 @@ export default function DashboardView({
                   className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
                     selectedCategory === cat.name
                       ? "bg-[#FF7A00] text-white"
-                      : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-705"
+                      : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                 >
                   {cat.name.split(" ")[0]} ({count})
@@ -470,7 +470,7 @@ export default function DashboardView({
             <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center text-[#FF7A00]">
               <Lightbulb className="w-4 h-4" />
             </div>
-            <h3 className="text-[14px] font-bold text-slate-805 dark:text-white">Idea vault</h3>
+            <h3 className="text-[14px] font-bold text-slate-800 dark:text-white">Idea vault</h3>
           </div>
           <p className="text-[11.5px] text-slate-400 mb-4 leading-relaxed font-sans font-medium">Drop a concept before it slips away.</p>
 
@@ -504,7 +504,7 @@ export default function DashboardView({
               <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center text-[#FF7A00]">
                 <Video className="w-4 h-4" />
               </div>
-              <h3 className="text-[14px] font-bold text-slate-805 dark:text-white">Video queue</h3>
+              <h3 className="text-[14px] font-bold text-slate-800 dark:text-white">Video queue</h3>
             </div>
             <button onClick={() => onNavigate("content")} className="text-[12px] font-semibold text-[#FF7A00] hover:underline cursor-pointer">
               Open hub
@@ -545,7 +545,7 @@ export default function DashboardView({
             {skills.slice(0, 3).map((s) => (
               <div key={s.name}>
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[13px] font-medium text-slate-750 dark:text-slate-300">{s.name}</span>
+                  <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300">{s.name}</span>
                   <span className="text-[11px] text-slate-400 tabular-nums">Lv {s.level} · {s.progress}%</span>
                 </div>
                 <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -735,7 +735,7 @@ export default function DashboardView({
               {/* Saved notes */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-[13px] font-semibold text-slate-750 dark:text-slate-300">Saved ({quickNotes.length})</h4>
+                  <h4 className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">Saved ({quickNotes.length})</h4>
                 </div>
 
                 {quickNotes.length === 0 ? (
@@ -748,7 +748,7 @@ export default function DashboardView({
                     {quickNotes.map((note) => (
                       <div
                         key={note.id}
-                        className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-100 dark:border-slate-750/60 text-left"
+                        className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700/60 text-left"
                       >
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200">{note.title}</p>
